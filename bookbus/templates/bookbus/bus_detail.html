@@ -1,0 +1,35 @@
+{% extends "bookbus/base.html" %}
+
+{% block content %}
+    <h1>Selected bus</h1>
+    <article class="media content-section">
+        <!--<img src="{{ bus.travels.profile.image.url }}" class="rounded-circle article-img">-->
+
+        <div class="media-body">
+            <div class="article-metadata">
+                <a class="mr-2" href="{% url 'user-buses' bus.travels.username %}">🚎 {{ bus.travels }}</a>
+                <!--<small class="text-muted">{{ object.date_added|date:"F d, Y @ H:i " }}</small>-->
+                {% if object.travels == user %}
+                    <div>
+                        <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'bus-update' object.id %}">Update</a>
+                        <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'bus-delete' object.id %}" >Delete</a>
+                    </div>
+
+                {% endif %}
+            </div>
+              <div class="article-journey" onclick='location.href="{% url 'bus-detail' bus.id %}";'>
+                  <div>
+                      <h3>🏙️ {{ bus.journey_start }}</h3>
+                      <h3>⏰ {{ bus.start_time}}</h3>
+                  </div>
+                  <div>
+                      <h3>🏙️ {{ bus.journey_end }}</h3>
+                      <h3>⏰ {{ bus.end_time}}</h3>
+                  </div>
+              </div>
+            
+        </div>
+            
+    </article>
+
+{% endblock content %}
