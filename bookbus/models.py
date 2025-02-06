@@ -26,13 +26,15 @@ class Bus(models.Model):
     )
 
     start_time = models.TimeField()
-
     end_time = models.TimeField()
 
     def journey(self):
         return f"{self.journey_start}@{self.start_time} to {self.journey_end}@{self.end_time}"
 
-    seats = models.IntegerField()
+    total_seats = models.IntegerField(default = 0)
+    available_seats = models.IntegerField(default = 0)
+
+    #available_seats = models.IntegerField()
 
     date_added = models.DateTimeField(default=timezone.now)
 
@@ -43,4 +45,3 @@ class Bus(models.Model):
 
     def get_absolute_url(self):
         return reverse('bus-detail', kwargs={'pk':self.pk})
-

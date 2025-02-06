@@ -36,17 +36,25 @@ class UserBusListView(ListView):
 class BusDetailView(DetailView):
     model = Bus
 
-class BusCreateView(LoginRequiredMixin, CreateView):
+
+class BusCreateView(LoginRequiredMixin, UserPassesTestMixin,CreateView):
     model = Bus
-    fields = ['journey_start','journey_end', 'start_time', 'end_time','seats']
+    fields = ['journey_start','journey_end', 'start_time', 'end_time','total_seats', 'available_seats']#'total_seats', 'available_seats']
 
     def form_valid(self, form):
         form.instance.travels = self.request.user
+        """if form.instance.total_seats<form.instance.available_seats:
+            return False"""
         return super().form_valid(form)
+
+    def test_func(self):
+
+        return self.request.user.groups.filter(name='BusAdmin').exists()
+
 
 class BusUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Bus
-    fields = ['journey_start','journey_end', 'start_time', 'end_time', 'seats']
+    fields = ['journey_start','journey_end', 'start_time', 'end_time','total_seats', 'available_seats']#'total_seats', 'available_seats']
 
     def form_valid(self, form):
         form.instance.travels = self.request.user
