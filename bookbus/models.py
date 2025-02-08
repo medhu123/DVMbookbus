@@ -5,6 +5,8 @@ from django.urls import reverse
 
 class Bus(models.Model):
 
+
+
     class Place(models.TextChoices):
         DEL = 'Delhi'
         JAI = 'Jaipur'
@@ -34,7 +36,7 @@ class Bus(models.Model):
     total_seats = models.IntegerField(default = 0)
     available_seats = models.IntegerField(default = 0)
 
-    #available_seats = models.IntegerField()
+
 
     date_added = models.DateTimeField(default=timezone.now)
 
@@ -45,3 +47,21 @@ class Bus(models.Model):
 
     def get_absolute_url(self):
         return reverse('bus-detail', kwargs={'pk':self.pk})
+
+
+class Booking(models.Model):
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE)
+    customers = models.ManyToManyField(User)
+
+    @classmethod
+    def add_booking(cls, bus, new_customer):
+        booking, created = cls.objects.get_or_create(bus=bus)
+        booking.customers.add(new_customer)
+    
+    @classmethod
+    def remove_booking(cls, bus, customer):
+        booking, created = cls.objects.get_or_create(bus=bus)
+        booking.customers.remove(new_customer)
+    
+    def __str__(self):
+        return f'{self.bus} booked by {self.customers.all()}'

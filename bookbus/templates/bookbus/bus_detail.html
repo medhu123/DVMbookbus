@@ -14,8 +14,16 @@
                         <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'bus-update' object.id %}">Update</a>
                         <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'bus-delete' object.id %}" >Delete</a>
                     </div>
-
                 {% endif %}
+
+                {% for group in user.groups.all %}
+                    {% if group.name == 'Customer' %}
+                        <div>
+                            <a class="btn btn-info btn-sm mt-1 mb-1" href="{% url 'bus-book-add' object.id %}">Book</a>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
             </div>
               <div class="article-journey" onclick='location.href="{% url 'bus-detail' bus.id %}";'>
                   <div>

@@ -34,6 +34,8 @@
                   {% for group in user.groups.all %}
                     {% if group.name == 'BusAdmin' %}
                       <a class="nav-item nav-link" href="{% url 'bus-create' %}">New bus</a>
+                    {% elif group.name == 'Customer' %}
+                      <a class="nav-item nav-link" href="{% url 'booked-buses' request.user%}">Bookings</a>
                     {% endif %}
                   {% endfor %}
                   <a class="nav-item nav-link" href="{% url 'profile' %}">Profile</a>

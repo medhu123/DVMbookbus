@@ -1,15 +1,17 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin 
 from django.contrib.auth.models import User
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from .models import Bus
+from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
+from .models import Bus, Booking
+from django.http import HttpResponse
 
 
 
 
 def home(request):
    context = {
-        'buses': Bus.objects.all()
+        'buses': Bus.objects.all(),
+        'bookings':Booking.objects.all()
    } 
    return render(request, 'blog/home.html', context)
 
@@ -20,8 +22,6 @@ class BusListView(ListView):
     ordering = ['-date_added']
     paginate_by = 5
 
-
-
 class UserBusListView(ListView):
     model = Bus
     template_name='bookbus/user_buses.html'
@@ -31,6 +31,15 @@ class UserBusListView(ListView):
     def get_queryset(self):
         user = get_object_or_404(User, username=self.kwargs.get('username'))
         return Bus.objects.filter(travels=user).order_by('-date_added')
+
+class UserBookingListView(ListView):
+    model = Booking
+    template_name='bookbus/booked_buses.html'
+    context_object_name = 'bookings'
+    paginate_by = 5
+
+    """def get_queryset(self):
+        return User.objects.filter(username=self.kwargs.get('username')).first().booking_set.all()"""
 
 
 class BusDetailView(DetailView):
@@ -77,6 +86,16 @@ class BusDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
             return True
         
         return False
+
+def BusBookAddView(request, pk):
+    model = Bus
+
+    if request.method=="POST":
+        Booking.add_booking(Bus.objects.filter(pk=pk).first(),request.user)
+        return redirect('/')
+
+
+    return render(request, 'bookbus/bus_book_add.html')
 
 
 def about(request):
