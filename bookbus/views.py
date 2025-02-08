@@ -38,8 +38,8 @@ class UserBookingListView(ListView):
     context_object_name = 'bookings'
     paginate_by = 5
 
-    """def get_queryset(self):
-        return User.objects.filter(username=self.kwargs.get('username')).first().booking_set.all()"""
+    def get_queryset(self):
+        return User.objects.filter(username=self.kwargs.get('username')).first().booking_set.all()
 
 
 class BusDetailView(DetailView):
@@ -92,10 +92,20 @@ def BusBookAddView(request, pk):
 
     if request.method=="POST":
         Booking.add_booking(Bus.objects.filter(pk=pk).first(),request.user)
-        return redirect('/')
+        return redirect('booked-buses', request.user)
 
 
     return render(request, 'bookbus/bus_book_add.html')
+
+def BusBookRemoveView(request, pk):
+    model = Bus
+
+    if request.method=="POST":
+        Booking.remove_booking(Bus.objects.filter(pk=pk).first(),request.user)
+        return redirect('booked-buses', request.user)
+
+
+    return render(request, 'bookbus/bus_book_remove.html')
 
 
 def about(request):

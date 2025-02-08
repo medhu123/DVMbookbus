@@ -61,7 +61,7 @@ class Booking(models.Model):
     @classmethod
     def remove_booking(cls, bus, customer):
         booking, created = cls.objects.get_or_create(bus=bus)
-        booking.customers.remove(new_customer)
+        booking.customers.remove(customer)
     
     def __str__(self):
         return f'{self.bus} booked by {self.customers.all()}'
