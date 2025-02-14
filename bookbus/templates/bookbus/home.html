@@ -1,7 +1,45 @@
 {% extends "bookbus/base.html" %}
-
+{% load crispy_forms_tags %}
 {% block content %}
-    <h1 class="mb-3">All Buses</h1>
+    <main role="main" class="container">
+      <div >
+        <div >
+          <div class="content-section">
+            <h3>Filter Route</h3>
+            <p class='text-muted'>Please enter the route start and end.
+              <form method="GET" action="{% url 'bookbus-home' %}">
+                {% csrf_token %}
+                <label for="journey_start">Start:</label>
+                <select name="journey_start" id="journey_start">
+                    <option value="">-- Select Start --</option>
+                    {% for city in start_cities %}
+                        <option value="{{ city }}" {% if request.GET.journey_start == city %}selected{% endif %}>
+                            {{ city }}
+                        </option>
+                    {% empty %}
+                        <option value="">No cities available</option>
+                    {% endfor %}
+                </select>
+            
+                <label for="journey_end">End:</label>
+                <select name="journey_end" id="journey_end">
+                    <option value="">-- Select End --</option>
+                    {% for city in end_cities %}
+                        <option value="{{ city }}" {% if request.GET.journey_end == city %}selected{% endif %}>
+                            {{ city }}
+                        </option>
+                    {% empty %}
+                        <option value="">No cities available</option>
+                    {% endfor %}
+                </select>
+            
+                <button type="submit">Search</button>
+            </form>
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
     {% for bus in buses %}
         <article class="media content-section">
             <!--<img src="{{ bus.travels.profile.image.url }}" class="rounded-circle article-img">-->
@@ -13,14 +51,16 @@
                   <div class="article-journey" onclick='location.href="{% url 'bus-detail' bus.id %}";'>
                       <div>
                           <h3>🏙️ {{ bus.journey_start }}</h3>
-                          <h3>⏰ {{ bus.start_time}}</h3>
+                          <h3>🗓️ {{ bus.start_time.date}}</h3>
+                          <h3>⏰ {{ bus.start_time.time}}</h3>
                       </div>
                       <div>
                           <h3>🏙️ {{ bus.journey_end }}</h3>
-                          <h3>⏰ {{ bus.end_time}}</h3>
+                          <h3>🗓️ {{ bus.end_time.date}}</h3>
+                          <h3>⏰ {{ bus.end_time.time}}</h3>
                       </div>
                   </div>
-                  <p class="article-content">Availble Seats : {{ bus.available_seats }}</p>
+                  <p class="article-content">Available Seats : {{ bus.available_seats }} | Fare : {{ bus.fare }}</p>
                 
             </div>
 
@@ -48,4 +88,5 @@
       {% endif %}
 
     {% endif %}
+
 {% endblock content %}

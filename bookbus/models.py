@@ -5,8 +5,6 @@ from django.urls import reverse
 
 class Bus(models.Model):
 
-
-
     class Place(models.TextChoices):
         DEL = 'Delhi'
         JAI = 'Jaipur'
@@ -24,19 +22,18 @@ class Bus(models.Model):
     journey_end = models.CharField(
         max_length=20,
         choices=Place.choices,
-        default=Place.PIL
+        default=Place.DEL
     )
 
-    start_time = models.TimeField()
-    end_time = models.TimeField()
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
 
     def journey(self):
         return f"{self.journey_start}@{self.start_time} to {self.journey_end}@{self.end_time}"
 
+    fare = models.IntegerField(default = 0)
     total_seats = models.IntegerField(default = 0)
     available_seats = models.IntegerField(default = 0)
-
-
 
     date_added = models.DateTimeField(default=timezone.now)
 
@@ -52,6 +49,7 @@ class Bus(models.Model):
 class Booking(models.Model):
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE)
     customers = models.ManyToManyField(User)
+    seats_booked = models.IntegerField(default = 0)
 
     @classmethod
     def add_booking(cls, bus, new_customer):
@@ -64,4 +62,4 @@ class Booking(models.Model):
         booking.customers.remove(customer)
     
     def __str__(self):
-        return f'{self.bus} booked by {self.customers.all()}'
+        return f'{self.bus} booked by {list(self.customers.all())}'

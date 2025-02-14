@@ -14,11 +14,13 @@
             <div class="article-journey" onclick='location.href="{% url 'bus-detail' bus.id %}";'>
                 <div>
                     <h3>🏙️ {{ bus.journey_start }}</h3>
-                    <h3>⏰ {{ bus.start_time}}</h3>
+                    <h3>🗓️ {{ bus.start_time.date}}</h3>
+                    <h3>⏰ {{ bus.start_time.time}}</h3>
                 </div>
                 <div>
                     <h3>🏙️ {{ bus.journey_end }}</h3>
-                    <h3>⏰ {{ bus.end_time}}</h3>
+                    <h3>🗓️ {{ bus.end_time.date}}</h3>
+                    <h3>⏰ {{ bus.end_time.time}}</h3>
                 </div>
             </div>
           

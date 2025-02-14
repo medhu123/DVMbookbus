@@ -16,13 +16,16 @@
                 <div class="article-journey" onclick=''>
                     <div>
                         <h3>🏙️ {{ booking.bus.journey_start }}</h3>
-                        <h3>⏰ {{ booking.bus.start_time}}</h3>
+                        <h3>🗓️ {{ booking.bus.start_time.date}}</h3>
+                        <h3>⏰ {{ booking.bus.start_time.time}}</h3>
                     </div>
                     <div>
                         <h3>🏙️ {{ booking.bus.journey_end }}</h3>
-                        <h3>⏰ {{ booking.bus.end_time}}</h3>
+                        <h3>🗓️ {{ booking.bus.end_time.date}}</h3>
+                        <h3>⏰ {{ booking.bus.end_time.time}}</h3>
                     </div>
                 </div>
+                <p>Seats Booked : {{ booking.seats_booked }}</p>
             
             </div>
 
@@ -51,3 +54,4 @@
 
     {% endif %}
 {% endblock content %}
+pytho

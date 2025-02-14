@@ -3,34 +3,67 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
 from .models import Bus, Booking
+from .forms import BookingSeatForm, FilterForm
 from django.http import HttpResponse
+from django.db import models
 
 
 
 
 def home(request):
-   context = {
-        'buses': Bus.objects.all(),
-        'bookings':Booking.objects.all()
-   } 
-   return render(request, 'blog/home.html', context)
+
+    journey_start = request.GET.get("journey_start", "")
+    journey_end = request.GET.get("journey_end", "")
+
+    start_cities = Bus.objects.values_list("journey_start", flat=True).distinct()
+    end_cities = Bus.objects.values_list("journey_end", flat=True).distinct()
+
+    cities = sorted(set(start_cities) | set(end_cities))
+    print("Cities:", cities)
+    buses = Bus.objects.all()
+
+    if journey_start:
+        buses = buses.filter(journey_start=journey_start)
+    if journey_end:
+        buses = buses.filter(journey_end=journey_end)
+
+    context = {
+            'buses': buses,
+            'bookings':Booking.objects.all(),
+            "buses": buses,
+            "start_cities": start_cities,
+            "end_cities":end_cities,
+    } 
+
+
+
+
+
+    return render(request, 'bookbus/home.html', context)
 
 class BusListView(ListView):
+
+
     model = Bus
     template_name='bookbus/home.html'
     context_object_name = 'buses'
-    ordering = ['-date_added']
+    ordering = ['-start_time']
     paginate_by = 5
+
+    
+
+
 
 class UserBusListView(ListView):
     model = Bus
     template_name='bookbus/user_buses.html'
+    ordering = ['-start_time']
     context_object_name = 'buses'
     paginate_by = 5
 
     def get_queryset(self):
         user = get_object_or_404(User, username=self.kwargs.get('username'))
-        return Bus.objects.filter(travels=user).order_by('-date_added')
+        return Bus.objects.filter(travels=user).order_by('-start_time')
 
 class UserBookingListView(ListView):
     model = Booking
@@ -48,7 +81,7 @@ class BusDetailView(DetailView):
 
 class BusCreateView(LoginRequiredMixin, UserPassesTestMixin,CreateView):
     model = Bus
-    fields = ['journey_start','journey_end', 'start_time', 'end_time','total_seats', 'available_seats']#'total_seats', 'available_seats']
+    fields = ['journey_start','journey_end', 'start_time', 'end_time','total_seats', 'available_seats', 'fare']
 
     def form_valid(self, form):
         form.instance.travels = self.request.user
@@ -63,7 +96,7 @@ class BusCreateView(LoginRequiredMixin, UserPassesTestMixin,CreateView):
 
 class BusUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Bus
-    fields = ['journey_start','journey_end', 'start_time', 'end_time','total_seats', 'available_seats']#'total_seats', 'available_seats']
+    fields = ['journey_start','journey_end', 'start_time', 'end_time','total_seats', 'available_seats', 'fare']
 
     def form_valid(self, form):
         form.instance.travels = self.request.user
@@ -88,22 +121,40 @@ class BusDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return False
 
 def BusBookAddView(request, pk):
-    model = Bus
+    model = Booking
+
 
     if request.method=="POST":
-        Booking.add_booking(Bus.objects.filter(pk=pk).first(),request.user)
-        return redirect('booked-buses', request.user)
+        bus = Bus.objects.filter(pk=pk)
+        b_form = BookingSeatForm(request.POST, instance = bus.first().booking_set.first())
 
+        if b_form.is_valid():
+            booking = b_form.save(commit=False)
+            booking.bus_id = bus.first().id
+            booking.save()
+            Booking.add_booking(Bus.objects.filter(pk=pk).first(),request.user)
+            bus.update(available_seats=models.F('total_seats') - bus.first().booking_set.first().seats_booked)
+            return redirect('booked-buses', request.user.username)
+    
+    else:
+        bus = Bus.objects.filter(pk=pk)
+        b_form = BookingSeatForm(request.POST, instance = bus.first().booking_set.first())
+    
+    context = {
+        'b_form': b_form,
+    }
 
-    return render(request, 'bookbus/bus_book_add.html')
+    return render(request, 'bookbus/bus_book_add.html', context)
 
 def BusBookRemoveView(request, pk):
-    model = Bus
+    model = Booking
 
     if request.method=="POST":
+        bus = Bus.objects.filter(pk=pk)
         Booking.remove_booking(Bus.objects.filter(pk=pk).first(),request.user)
+        Bus.objects.filter(pk=pk).update(available_seats=models.F('available_seats') + bus.first().booking_set.first().seats_booked)
         return redirect('booked-buses', request.user)
-
+        
 
     return render(request, 'bookbus/bus_book_remove.html')
 
