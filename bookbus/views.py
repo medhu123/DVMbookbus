@@ -1,57 +1,81 @@
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin 
 from django.contrib.auth.models import User
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
 from .models import Bus, Booking
-from .forms import BookingSeatForm, FilterForm
+from .forms import BookingSeatForm, FilterForm, BusForm
 from django.http import HttpResponse
 from django.db import models
-
-
 
 
 def home(request):
 
     journey_start = request.GET.get("journey_start", "")
     journey_end = request.GET.get("journey_end", "")
-
-    start_cities = Bus.objects.values_list("journey_start", flat=True).distinct()
-    end_cities = Bus.objects.values_list("journey_end", flat=True).distinct()
-
-    cities = sorted(set(start_cities) | set(end_cities))
-    print("Cities:", cities)
     buses = Bus.objects.all()
 
-    if journey_start:
-        buses = buses.filter(journey_start=journey_start)
-    if journey_end:
-        buses = buses.filter(journey_end=journey_end)
+    cities = Bus.objects.values_list("stops", flat=True).distinct()
+    city = list(set([item for sublist in cities for item in sublist]))  # Flatten list
+
+    start_cities = list(set(Bus.objects.values_list("journey_start", flat=True).distinct()))
+    end_cities = list(set(Bus.objects.values_list("journey_end", flat=True).distinct()))
+
+    city.extend(start_cities + end_cities)
+    city = list(set(city)) 
+
+    if journey_start and journey_end:
+        valid_buses = []
+
+        for bus in buses:
+
+            stops = [bus.journey_start] + bus.stops + [bus.journey_end]
+
+            if journey_start in stops and journey_end in stops:
+                if stops.index(journey_start) < stops.index(journey_end):
+                    valid_buses.append(bus)
+
+        buses = valid_buses
+        print("Final filtered buses:", buses)
+
+
+    elif journey_start:
+        start_filter = []
+        for bus in buses:
+            stops = bus.stops
+
+            if journey_start in stops or journey_start == bus.journey_start:
+                start_filter.append(bus)
+
+        buses = start_filter
+
+    elif journey_end:
+        end_filter = []
+        for bus in buses:
+            stops = bus.stops
+
+            if journey_end in stops or journey_end == bus.journey_end:
+                end_filter.append(bus)
+
+        buses = end_filter
+
 
     context = {
             'buses': buses,
             'bookings':Booking.objects.all(),
             "buses": buses,
-            "start_cities": start_cities,
-            "end_cities":end_cities,
+            "start_cities": city,
+            "end_cities": city,
     } 
-
-
-
-
 
     return render(request, 'bookbus/home.html', context)
 
 class BusListView(ListView):
-
 
     model = Bus
     template_name='bookbus/home.html'
     context_object_name = 'buses'
     ordering = ['-start_time']
     paginate_by = 5
-
-    
-
 
 
 class UserBusListView(ListView):
@@ -81,12 +105,18 @@ class BusDetailView(DetailView):
 
 class BusCreateView(LoginRequiredMixin, UserPassesTestMixin,CreateView):
     model = Bus
-    fields = ['journey_start','journey_end', 'start_time', 'end_time','total_seats', 'available_seats', 'fare']
+    form_class = BusForm
+    template_name = 'bookbus/bus_form.html'
+
+    """def get_initial(self):
+        initial = super().get_initial()
+        bus = self.get_object()
+        initial['stops'] = bus.stops
+        return initial"""
 
     def form_valid(self, form):
         form.instance.travels = self.request.user
-        """if form.instance.total_seats<form.instance.available_seats:
-            return False"""
+        form.instance.stops = form.cleaned_data['stops']
         return super().form_valid(form)
 
     def test_func(self):
@@ -95,19 +125,29 @@ class BusCreateView(LoginRequiredMixin, UserPassesTestMixin,CreateView):
 
 
 class BusUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    
     model = Bus
-    fields = ['journey_start','journey_end', 'start_time', 'end_time','total_seats', 'available_seats', 'fare']
+    form_class = BusForm
+    template_name = 'bookbus/bus_form.html'
+
+    def get_initial(self):
+        initial = super().get_initial()
+        bus = self.get_object()
+        initial['stops'] = bus.stops
+        return initial
 
     def form_valid(self, form):
         form.instance.travels = self.request.user
+        form.instance.stops = form.cleaned_data['stops']
         return super().form_valid(form)
+
+    """def get_success_url(self):
+        return reverse('bus_detail', kwargs={'pk': self.object.pk})"""
     
     def test_func(self):
         bus = self.get_object()
-        if self.request.user == bus.travels:
-            return True
-        
-        return False
+        return self.request.user == bus.travels
+
 
 class BusDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Bus

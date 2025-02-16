@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import ArrayField
 from django.urls import reverse
 
 class Bus(models.Model):
@@ -25,6 +26,15 @@ class Bus(models.Model):
         default=Place.DEL
     )
 
+    stops = ArrayField(
+        models.CharField(
+            max_length=20,
+            choices=Place.choices,
+            default=Place.PIL
+        ),
+        default=list
+    )
+
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
 
@@ -38,6 +48,20 @@ class Bus(models.Model):
     date_added = models.DateTimeField(default=timezone.now)
 
     travels = models.ForeignKey(User, on_delete = models.CASCADE)
+
+    def add_stop(self, stop_name):
+        self.stops.append(stop_name)
+        self.save()
+
+    def remove_stop(self, stop_name):
+        self.stops = [stop for stop in self.stops if stop != stop_name]
+        self.save()
+
+    def list_stops(self):
+        return self.stops
+
+    def journey(self):
+        return f"{self.journey_start}@{self.start_time} to {self.journey_end}@{self.end_time}"
 
     def __str__(self):
         return f'{self.journey_start} to {self.journey_end} by {self.travels}'

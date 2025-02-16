@@ -6,11 +6,79 @@
             {% csrf_token %}
             <fieldset class="form-group">
                 <legend class="border-bottom mb-4">Add Bus</legend>
-                {{ form | crispy }}
+
+                {{ form.journey_start | as_crispy_field }}
+                {{ form.journey_end | as_crispy_field }}
+                {{ form.start_time | as_crispy_field }}
+                {{ form.end_time | as_crispy_field }}
+                {{ form.total_seats | as_crispy_field }}
+                {{ form.available_seats | as_crispy_field }}
+                {{ form.fare | as_crispy_field }}
+
+                <div class="form-group">
+                    <label for="id_stops">Select Stops:</label>
+                    <select name="stops" id="id_stops" class="form-control" multiple>
+                        {% for value, label in form.fields.stops.choices %}
+                            <option value="{{ value }}" {% if value in form.initial.stops %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
             </fieldset>
             <div class="form-group">
                 <button class="btn btn-outline-info" type="submit">Add</button>
             </div>
         </form>
     </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let selectBox = document.getElementById("id_stops");
+            let selectedValues = [];
+            let journeyStart = document.getElementById("id_journey_start");
+            let journeyEnd = document.getElementById("id_journey_end");
+    
+            function updateStops() {
+                let startValue = journeyStart.value;
+                let endValue = journeyEnd.value;
+    
+                Array.from(selectBox.options).forEach(option => {
+                    option.hidden = (option.value === startValue || option.value === endValue);
+                    if (option.hidden) {
+                        option.selected = false; // Deselect if hidden
+                    }
+                });
+            }
+    
+            // When journey_start or journey_end changes, update stops
+            journeyStart.addEventListener("change", updateStops);
+            journeyEnd.addEventListener("change", updateStops);
+    
+            // Sort stops based on the order of selection
+            selectBox.addEventListener("change", function () {
+                let selectedOptions = Array.from(selectBox.selectedOptions).map(opt => opt.value);
+                selectedValues = selectedValues.filter(value => selectedOptions.includes(value));
+                selectedOptions.forEach(value => {
+                    if (!selectedValues.includes(value)) {
+                        selectedValues.push(value);
+                    }
+                });
+    
+                let options = Array.from(selectBox.options);
+                options.sort((a, b) => selectedValues.indexOf(a.value) - selectedValues.indexOf(b.value));
+    
+                selectBox.innerHTML = "";
+                options.forEach(option => {
+                    selectBox.appendChild(option);
+                    option.selected = selectedValues.includes(option.value);
+                });
+            });
+    
+            // Initial update in case journey start/end are pre-selected
+            updateStops();
+        });
+    </script>
+
 {% endblock content %}

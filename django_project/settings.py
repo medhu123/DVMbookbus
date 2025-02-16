@@ -32,7 +32,6 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    #'blog.apps.BlogConfig',
     'users.apps.UsersConfig',
     'bookbus.apps.BookbusConfig',
     'crispy_forms',
@@ -81,10 +80,15 @@ WSGI_APPLICATION = 'django_project.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'bookbus_database',
+        'USER': 'medhansh',
+        'PASSWORD': 'testing321',
+        'HOST': 'localhost',  # Or remote server IP
+        'PORT': '5432',
     }
 }
+
 
 
 # Password validation
@@ -141,5 +145,5 @@ EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIl_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'medhanshai90@gmail.com'
-EMAIL_HOST_PASSWORD = 'wlyu maic mnua krnx'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASS')

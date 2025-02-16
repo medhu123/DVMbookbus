@@ -1,5 +1,5 @@
 body {
-    user-select: none; /* Standard syntax */
+    user-select: none;
 
     background: #fafafa;
     color: #333333;
@@ -28,6 +28,11 @@ body {
   
   .site-header .navbar-nav .nav-link.active {
     font-weight: 500;
+  }
+
+  .display-filter{
+    display: flex; 
+    justify-content: space-between;
   }
   
   .content-section {
@@ -63,6 +68,7 @@ body {
 
   .article-content {
     white-space: pre-line;
+    padding: 0.2rem;
   }
   
   .article-img {
