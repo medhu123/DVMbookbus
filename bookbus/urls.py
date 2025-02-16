@@ -4,7 +4,7 @@ from . import views as bus_views
 
 
 urlpatterns = [
-    path('', home, name="bookbus-home"), #name added because we may need reverse lookup, which can't have common names like home because it may clash with other app integrations.
+    path('', bus_views.home, name="bookbus-home"), #name added because we may need reverse lookup, which can't have common names like home because it may clash with other app integrations.
     path('user/<str:username>', UserBusListView.as_view(), name="user-buses"),
     path('user/<str:username>/bookings', UserBookingListView.as_view(), name="booked-buses"),
     path('bus/<int:pk>/', BusDetailView.as_view(), name="bus-detail"),
