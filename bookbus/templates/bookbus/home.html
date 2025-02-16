@@ -2,39 +2,45 @@
 {% load crispy_forms_tags %}
 {% block content %}
     <main role="main" class="container">
-      <div >
-        <div >
+      <div>
+        <div>
           <div class="content-section">
             <h3>Filter Route</h3>
             <p class='text-muted'>Please enter the route start and end.
-              <form method="GET" action="{% url 'bookbus-home' %}">
-                {% csrf_token %}
-                <label for="journey_start">Start:</label>
-                <select name="journey_start" id="journey_start">
-                    <option value="">-- Select Start --</option>
-                    {% for city in start_cities %}
-                        <option value="{{ city }}" {% if request.GET.journey_start == city %}selected{% endif %}>
-                            {{ city }}
-                        </option>
-                    {% empty %}
-                        <option value="">No cities available</option>
-                    {% endfor %}
-                </select>
-            
-                <label for="journey_end">End:</label>
-                <select name="journey_end" id="journey_end">
-                    <option value="">-- Select End --</option>
-                    {% for city in end_cities %}
-                        <option value="{{ city }}" {% if request.GET.journey_end == city %}selected{% endif %}>
-                            {{ city }}
-                        </option>
-                    {% empty %}
-                        <option value="">No cities available</option>
-                    {% endfor %}
-                </select>
-            
-                <button type="submit">Search</button>
-            </form>
+              <div>
+                <form method="GET" action="{% url 'bookbus-home' %}" class="display-filter">
+                  {% csrf_token %}
+                  <div>
+                    <label for="journey_start">Start:</label>
+                    <select name="journey_start" id="journey_start">
+                        <option value="">-- Any Stop --</option>
+                        {% for city in start_cities %}
+                            <option value="{{ city }}" {% if request.GET.journey_start == city %}selected{% endif %}>
+                                {{ city }}
+                            </option>
+                        {% empty %}
+                            <option value="">No cities available</option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="journey_end">End:</label>
+                    <select name="journey_end" id="journey_end">
+                        <option value="">-- Any Stop --</option>
+                        {% for city in end_cities %}
+                            <option value="{{ city }}" {% if request.GET.journey_end == city %}selected{% endif %}>
+                                {{ city }}
+                            </option>
+                        {% empty %}
+                            <option value="">No cities available</option>
+                        {% endfor %}
+                    </select>
+                  </div>
+
+                  <div>
+                    <button type="submit" class="form-submit-btn btn btn-outline-info btn-sm mt-1 mb-1">Search</button>
+                  </div>
+                </form>
+              </div>
             </p>
           </div>
         </div>
@@ -60,8 +66,14 @@
                           <h3>⏰ {{ bus.end_time.time}}</h3>
                       </div>
                   </div>
-                  <p class="article-content">Available Seats : {{ bus.available_seats }} | Fare : {{ bus.fare }}</p>
-                
+
+                  <p class="article-content">
+                    {% if bus.stops %}
+                      Stops: {{ bus.stops|join:" → " }} | Available Seats: {{ bus.available_seats }} | Fare: ₹{{ bus.fare }}
+                    {% else %}
+                      No stops | Available Seats: {{ bus.available_seats }} | Fare: ₹{{ bus.fare }}
+                    {% endif %}
+                  </p>
             </div>
 
         </article>

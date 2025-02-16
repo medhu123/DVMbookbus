@@ -37,8 +37,13 @@
                     <h3>⏰ {{ bus.end_time.time}}</h3>
                   </div>
               </div>
-              <p class="article-content">Available Seats : {{ bus.available_seats }}</p>
-            
+              <p class="article-content">
+                {% if bus.stops %}
+                  Stops: {{ bus.stops|join:" → " }} | Available Seats: {{ bus.available_seats }} | Fare: ₹{{ bus.fare }}
+                {% else %}
+                  No stops | Available Seats: {{ bus.available_seats }} | Fare: ₹{{ bus.fare }}
+                {% endif %}
+              </p>
         </div>
             
     </article>

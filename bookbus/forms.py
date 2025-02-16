@@ -4,12 +4,27 @@ from .models import Bus, Booking
 
 
 class BusForm(forms.ModelForm):
-    model = Bus
-    fields = ['journey_start', 'journey_end', 'start_time', 'end_time', 'total_seats', 'available_seats', 'fare']
-    widgets = {
-            'start_time': forms.TimeInput(format='%H:%M', attrs={'type': 'time'}),
-            'end_time': forms.TimeInput(format='%H:%M', attrs={'type': 'time'}),
-    }
+
+    stops = forms.MultipleChoiceField(
+        choices=Bus.Place.choices, 
+        widget=forms.SelectMultiple(attrs={'class': 'form-control'}), 
+        required=False
+    )
+
+    class Meta:
+        model = Bus
+        fields = ['journey_start', 'stops', 'journey_end', 'start_time', 'end_time', 'total_seats', 'available_seats', 'fare']
+        widgets = {
+            'start_time': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'end_time': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
+        }
+
+
+    def clean_stops(self):
+        stops = self.cleaned_data.get('stops', [])
+        return stops
+
+
 
         
 
