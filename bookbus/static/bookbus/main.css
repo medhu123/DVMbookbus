@@ -67,9 +67,14 @@ body {
   
 
   .article-content {
-    white-space: pre-line;
-    padding: 0.2rem;
-  }
+    font-size: 0.9rem; /* Reduce font size */
+    line-height: 1.2; /* Reduce line spacing */
+    padding: 0.2rem 0; /* Reduce padding */
+    margin: 0.2rem 0; /* Reduce margin */
+    max-width: 600px; /* Limit the width */
+    display: flex;
+    align-items: center;
+}
   
   .article-img {
     height: 65px;

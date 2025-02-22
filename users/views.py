@@ -48,8 +48,3 @@ def profile(request):
     }
 
     return render(request, 'users/profile.html', context)
-
-"""from allauth.account.views import LoginView
-
-class CustomLoginView(LoginView):
-    template_name = "users/login_decision.html"""

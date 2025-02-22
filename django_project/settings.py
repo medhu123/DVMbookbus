@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+import environ
+
+env = environ.Env()
+environ.Env.read_env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,12 +25,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!rl+m&8+7wjdn!%ms_9t6p_0fom7e&_lzu8(_r$vo(w1x*=j6&'
+SECRET_KEY = env('SECRET_KEY') # "django-insecure-!rl+m&8+7wjdn!%ms_9t6p_0fom7e&_lzu8(_r$vo(w1x*=j6&" 
+DEBUG = env('DEBUG')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+# 'DJANGO_ALLOWED_HOSTS' should be a single string of hosts with a space between each.
+# For example: 'DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]'
+DJANGO_ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS')
+CSRF_TRUSTED_ORIGINS = env('DJANGO_CSRF_TRUSTED_ORIGINS').split(",")
 
 
 # Application definition
@@ -100,10 +105,10 @@ WSGI_APPLICATION = 'django_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'bookbus_database',
-        'USER': 'medhansh',
-        'PASSWORD': 'testing321',
-        'HOST': 'localhost',  # Or remote server IP
+        'NAME': env('DATABASE_NAME'),
+        'USER': env('DATABASE_USER'),
+        'PASSWORD': env('DATABASE_PASS'),
+        'HOST':"host.docker.internal", #env('DATABASE_HOST'),  # Or remote server IP
         'PORT': '5432',
     }
 }
@@ -145,6 +150,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/' 
@@ -164,9 +170,8 @@ EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIl_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASS')
-
+EMAIL_HOST_USER = env('EMAIl_HOST'),
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASS'),
 AUTHENTICATION_BACKEND = (
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",

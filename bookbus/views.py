@@ -62,7 +62,6 @@ def home(request):
     context = {
             'buses': buses,
             'bookings':Booking.objects.all(),
-            "buses": buses,
             "start_cities": city,
             "end_cities": city,
     } 

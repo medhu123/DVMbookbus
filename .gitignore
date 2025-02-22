@@ -1,0 +1,4 @@
+# created by virtualenv automatically
+.env.dev
+.env
+django_project/docker-compose.yml
