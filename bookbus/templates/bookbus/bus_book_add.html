@@ -1,0 +1,21 @@
+{% extends "bookbus/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="content-section">
+        <form method="POST">
+            {% csrf_token %}
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <fieldset class="form-group">
+                    <legend class="border-bottom mb-4">Book Bus</legend>
+                    <h2>How many seats do you want to book?</h2>
+                    {{ b_form | crispy }}
+                </fieldset>
+                <div class="form-group">
+                    <button class="btn btn-outline-success" type="submit">Yes, Book</button>
+                    <a class="btn btn-outline-secondary" onclick='location.href="/";'>Cancel</a>
+                </div>
+            </form>
+        </form>
+    </div>
+{% endblock content %}

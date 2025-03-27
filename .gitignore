@@ -1,0 +1,7 @@
+# created by virtualenv automatically
+__pycache__/
+*.pyc
+bus_django/.cache_ggshield
+.env.local
+.env.prod
+bus_django/docker-compose.yml

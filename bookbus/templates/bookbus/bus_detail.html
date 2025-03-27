@@ -1,0 +1,51 @@
+{% extends "bookbus/base.html" %}
+
+{% block content %}
+    <h1>Selected bus</h1>
+    <article class="media content-section">
+        <!--<img src="{{ bus.travels.profile.image.url }}" class="rounded-circle article-img">-->
+
+        <div class="media-body">
+            <div class="article-metadata">
+                <a class="mr-2" href="{% url 'user-buses' bus.travels.username %}">🚎 {{ bus.travels }}</a>
+                <!--<small class="text-muted">{{ object.date_added|date:"F d, Y @ H:i " }}</small>-->
+                {% if object.travels == user %}
+                    <div>
+                        <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'bus-update' object.id %}">Update</a>
+                        <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'bus-delete' object.id %}" >Delete</a>
+                    </div>
+                {% endif %}
+
+                {% for group in user.groups.all %}
+                    {% if group.name == 'Customer' %}
+                        <div>
+                            <a class="btn btn-info btn-sm mt-1 mb-1" href="{% url 'bus-book-add' object.id %}">Book</a>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+            </div>
+              <div class="article-journey" onclick='location.href="{% url 'bus-detail' bus.id %}";'>
+                  <div>
+                    <h3>🏙️ {{ bus.journey_start }}</h3>
+                    <h3>🗓️ {{ bus.start_time.date}}</h3>
+                    <h3>⏰ {{ bus.start_time.time}}</h3>
+                  </div>
+                  <div>
+                    <h3>🏙️ {{ bus.journey_end }}</h3>
+                    <h3>🗓️ {{ bus.end_time.date}}</h3>
+                    <h3>⏰ {{ bus.end_time.time}}</h3>
+                  </div>
+              </div>
+              <p class="article-content">
+                {% if bus.stops %}
+                  Stops: {{ bus.stops|join:" → " }} | Available Seats: {{ bus.available_seats }} | Fare: ₹{{ bus.fare }}
+                {% else %}
+                  No stops | Available Seats: {{ bus.available_seats }} | Fare: ₹{{ bus.fare }}
+                {% endif %}
+              </p>
+        </div>
+            
+    </article>
+
+{% endblock content %}
