@@ -1,0 +1,24 @@
+{% extends "bookbus/base.html" %}
+{% load crispy_forms_tags %}
+{% load form_utils %} 
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h3>Cancel Booking</h3>
+        </div>
+        <div class="card-body">
+            <p>Are you sure you want to cancel this booking?</p>
+            <p><strong>Passenger:</strong> {{ booking.passenger_name }}</p>
+            <p><strong>Seat:</strong> {{ booking.seat }}</p>
+            <p><strong>Travel Date:</strong> {{ booking.travel_date }}</p>
+            
+            <form method="POST">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Confirm Cancellation</button>
+                <a href="{% url 'booked-buses' username=request.user.username %}" class="btn btn-secondary">Go Back</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

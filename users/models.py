@@ -6,16 +6,19 @@ from django.dispatch import receiver
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-
     coins = models.IntegerField(default=0)
 
     def __str__(self):
         return f'{self.user.username} Profile'
-    
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        instance.groups.add(Group.objects.get(name='Customer'))
+        # Use get_or_create to prevent duplicates
+        Profile.objects.get_or_create(user=instance)
+        
+        # Add to Customer group if not superuser
+        if not instance.is_superuser:
+            customer_group, _ = Group.objects.get_or_create(name='Customer')
+            instance.groups.add(customer_group)

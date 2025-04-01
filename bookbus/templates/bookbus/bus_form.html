@@ -1,5 +1,6 @@
 {% extends "bookbus/base.html" %}
 {% load crispy_forms_tags %}
+{% load bus_tags %}
 
 {% block content %}
 <div class="container mt-4">
@@ -21,27 +22,46 @@
                     </div>
                 </div>
                 
+                <!-- Seat Configuration -->
                 <div class="row mb-4">
                     <div class="col-md-4">
-                        {{ form.general_seats|as_crispy_field }}
+                        {{ form.general_count|as_crispy_field }}
+                        {{ form.general_fare|as_crispy_field }}
                     </div>
                     <div class="col-md-4">
-                        {{ form.sleeper_seats|as_crispy_field }}
+                        {{ form.sleeper_count|as_crispy_field }}
+                        {{ form.sleeper_fare|as_crispy_field }}
                     </div>
                     <div class="col-md-4">
-                        {{ form.luxury_seats|as_crispy_field }}
+                        {{ form.luxury_count|as_crispy_field }}
+                        {{ form.luxury_fare|as_crispy_field }}
                     </div>
                 </div>
                 
+                <!-- Operating Days Checkboxes -->
                 <div class="mb-4">
-                    {{ form.fare|as_crispy_field }}
+                    <h5>{{ form.operating_days.label }}</h5>
+                    <div class="form-group">
+                        {% for value, label in form.fields.operating_days.choices %}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="operating_days" 
+                                       id="operating_day_{{ value }}" 
+                                       value="{{ value }}"
+                                       {% if value in form.operating_days.value %}checked{% endif %}>
+                                <label class="form-check-label" for="operating_day_{{ value }}">
+                                    {{ label }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
                 
                 <!-- Stops Management -->
                 <div class="mb-4">
                     <h4>Bus Route Stops</h4>
-                    <div class="row">
-                        <div class="col-md-8">
+                    <div class="row mb-3">
+                        <div class="col-md-5">
                             <select id="stop-select" class="form-select">
                                 <option value="">Select a stop to add</option>
                                 {% for stop in all_stops %}
@@ -49,7 +69,16 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <input type="time" id="stop-time" class="form-control" placeholder="Arrival time">
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="next-day-check">
+                                <label class="form-check-label" for="next-day-check">Next Day</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
                             <button type="button" id="add-stop" class="btn btn-primary">Add Stop</button>
                         </div>
                     </div>
@@ -57,8 +86,18 @@
                     <div class="mt-3">
                         <ul id="stop-list" class="list-group">
                             {% for bus_stop in current_stops %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ bus_stop.stop.id }}">
-                                {{ forloop.counter }}. {{ bus_stop.stop.name }}
+                            <li class="list-group-item d-flex justify-content-between align-items-center" 
+                                data-id="{{ bus_stop.stop.id }}"
+                                data-time="{{ bus_stop.arrival_time|time:'H:i' }}"
+                                data-next-day="{{ bus_stop.is_next_day|yesno:'1,0' }}">
+                                <div>
+                                    <span class="badge bg-secondary me-2">{{ forloop.counter }}</span>
+                                    {{ bus_stop.stop.name }}
+                                    <span class="badge bg-primary ms-2">{{ bus_stop.arrival_time|time:"H:i" }}</span>
+                                    {% if bus_stop.is_next_day %}
+                                    <span class="badge bg-warning text-dark ms-2">+1 day</span>
+                                    {% endif %}
+                                </div>
                                 <div>
                                     <button type="button" class="btn btn-sm btn-outline-secondary move-up">↑</button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary move-down">↓</button>
@@ -67,7 +106,9 @@
                             </li>
                             {% endfor %}
                         </ul>
-                        <input type="hidden" name="stop_order" id="stop-order" value="">
+                        <input type="hidden" name="stop_order" id="stop-order" value="{% for bus_stop in current_stops %}{{ bus_stop.stop.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                        <input type="hidden" name="stop_times" id="stop-times" value="{% for bus_stop in current_stops %}{{ bus_stop.arrival_time|time:'H:i' }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                        <input type="hidden" name="next_day_flags" id="next-day-flags" value="{% for bus_stop in current_stops %}{{ bus_stop.is_next_day|yesno:'1,0' }}{% if not forloop.last %},{% endif %}{% endfor %}">
                     </div>
                 </div>
                 
@@ -85,14 +126,76 @@
         const stopSelect = document.getElementById('stop-select');
         const stopList = document.getElementById('stop-list');
         const stopOrder = document.getElementById('stop-order');
+        const stopTimes = document.getElementById('stop-times');
+        const nextDayFlags = document.getElementById('next-day-flags');
         const addStopBtn = document.getElementById('add-stop');
+        const stopTimeInput = document.getElementById('stop-time');
+        const nextDayCheck = document.getElementById('next-day-check');
+        
+        // Function to initialize existing stops
+        function initializeExistingStops() {
+            const stops = stopList.querySelectorAll('li');
+            stops.forEach((li, index) => {
+                li.dataset.id = li.getAttribute('data-id');
+                li.dataset.time = li.getAttribute('data-time') || '00:00';
+                li.dataset.nextDay = li.getAttribute('data-next-day') || '0';
+                
+                const numberSpan = document.createElement('span');
+                numberSpan.className = 'stop-number badge bg-secondary me-2';
+                numberSpan.textContent = index + 1;
+                
+                // Create name span
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'stop-name me-2';
+                nameSpan.textContent = li.textContent.trim().replace(/^\d+/, '').trim();
+                
+                // Create time badge
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'stop-time badge bg-primary me-2';
+                timeSpan.textContent = li.dataset.time;
+                
+                // Create next day badge if needed
+                let nextDaySpan = null;
+                if (li.dataset.nextDay === '1') {
+                    nextDaySpan = document.createElement('span');
+                    nextDaySpan.className = 'next-day badge bg-warning text-dark';
+                    nextDaySpan.textContent = '+1 day';
+                }
+                
+                // Remove existing buttons if they exist
+                const existingButtons = li.querySelector('div');
+                if (existingButtons) {
+                    li.removeChild(existingButtons);
+                }
+                
+                // Clear and rebuild li content
+                li.innerHTML = '';
+                li.appendChild(numberSpan);
+                li.appendChild(nameSpan);
+                li.appendChild(timeSpan);
+                if (nextDaySpan) li.appendChild(nextDaySpan);
+                
+                // Create new buttons container
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-outline-secondary move-up">↑</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary move-down">↓</button>
+                    <button type="button" class="btn btn-sm btn-danger remove-stop">×</button>
+                `;
+                li.appendChild(buttonsDiv);
+            });
+        }
         
         // Initialize with existing stops if editing
-        updateStopOrder();
+        initializeExistingStops();
+        updateHiddenInputs();
         
         // Add stop to list
         addStopBtn.addEventListener('click', function() {
             const selectedOption = stopSelect.options[stopSelect.selectedIndex];
+            const stopTime = stopTimeInput.value || '00:00';
+            const isNextDay = nextDayCheck.checked ? '1' : '0';
+            
             if (selectedOption.value) {
                 const stopId = selectedOption.value;
                 const stopName = selectedOption.text;
@@ -102,17 +205,55 @@
                     const li = document.createElement('li');
                     li.className = 'list-group-item d-flex justify-content-between align-items-center';
                     li.dataset.id = stopId;
+                    li.dataset.time = stopTime;
+                    li.dataset.nextDay = isNextDay;
                     
-                    // Will set the number when we update the order
-                    li.innerHTML = `0. ${stopName}
-                        <div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary move-up">↑</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary move-down">↓</button>
-                            <button type="button" class="btn btn-sm btn-danger remove-stop">×</button>
-                        </div>`;
+                    // Create numbered badge
+                    const numberSpan = document.createElement('span');
+                    numberSpan.className = 'stop-number badge bg-secondary me-2';
+                    
+                    // Create name span
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'stop-name me-2';
+                    nameSpan.textContent = stopName;
+                    
+                    // Create time badge
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'stop-time badge bg-primary me-2';
+                    timeSpan.textContent = stopTime;
+                    
+                    // Create next day badge if needed
+                    let nextDaySpan = null;
+                    if (isNextDay === '1') {
+                        nextDaySpan = document.createElement('span');
+                        nextDaySpan.className = 'next-day badge bg-warning text-dark';
+                        nextDaySpan.textContent = '+1 day';
+                    }
+                    
+                    // Create buttons container
+                    const buttonsDiv = document.createElement('div');
+                    buttonsDiv.innerHTML = `
+                        <button type="button" class="btn btn-sm btn-outline-secondary move-up">↑</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary move-down">↓</button>
+                        <button type="button" class="btn btn-sm btn-danger remove-stop">×</button>
+                    `;
+                    
+                    // Append elements
+                    li.appendChild(numberSpan);
+                    li.appendChild(nameSpan);
+                    li.appendChild(timeSpan);
+                    if (nextDaySpan) li.appendChild(nextDaySpan);
+                    li.appendChild(buttonsDiv);
                     
                     stopList.appendChild(li);
-                    updateStopOrder();
+                    updateHiddenInputs();
+                    
+                    // Clear inputs
+                    stopSelect.value = '';
+                    stopTimeInput.value = '';
+                    nextDayCheck.checked = false;
+                } else {
+                    alert('This stop is already in the route');
                 }
             }
         });
@@ -124,48 +265,64 @@
             
             if (e.target.classList.contains('remove-stop')) {
                 li.remove();
-                updateStopOrder();
+                updateHiddenInputs();
             } else if (e.target.classList.contains('move-up')) {
                 const prev = li.previousElementSibling;
                 if (prev) {
                     stopList.insertBefore(li, prev);
-                    updateStopOrder();
+                    updateHiddenInputs();
                 }
             } else if (e.target.classList.contains('move-down')) {
                 const next = li.nextElementSibling;
                 if (next) {
                     stopList.insertBefore(next, li);
-                    updateStopOrder();
+                    updateHiddenInputs();
                 }
             }
         });
         
-        // Update the hidden input with current stop order
-        function updateStopOrder() {
-            const stops = Array.from(stopList.children).map(li => li.dataset.id);
-            stopOrder.value = stops.join(',');
+        // Update all hidden inputs with current stop data
+        function updateHiddenInputs() {
+            const stops = Array.from(stopList.children);
             
-            // Update numbering
-            Array.from(stopList.children).forEach((li, index) => {
-                const text = li.textContent.replace(/^\d+\./, '').trim();
-                li.textContent = `${index + 1}. ${text}`;
-                li.innerHTML = `${index + 1}. ${li.dataset.id ? li.innerHTML.split('.').pop().trim() : ''}
-                    <div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary move-up">↑</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary move-down">↓</button>
-                        <button type="button" class="btn btn-sm btn-danger remove-stop">×</button>
-                    </div>`;
+            // Update numbering and collect data
+            const stopData = stops.map((li, index) => {
+                const numberSpan = li.querySelector('.stop-number');
+                if (numberSpan) {
+                    numberSpan.textContent = index + 1;
+                }
+                
+                return {
+                    id: li.dataset.id,
+                    time: li.dataset.time || '00:00',
+                    nextDay: li.dataset.nextDay || '0'
+                };
             });
+            
+            // Update hidden inputs
+            stopOrder.value = stopData.map(s => s.id).join(',');
+            stopTimes.value = stopData.map(s => s.time).join(',');
+            nextDayFlags.value = stopData.map(s => s.nextDay).join(',');
         }
     });
 </script>
-
+    
 <style>
-    #stop-list li {
-        transition: all 0.3s ease;
+    .stop-number {
+        min-width: 30px;
+        text-align: center;
+    }
+    .stop-time {
+        min-width: 60px;
+        text-align: center;
     }
     .move-up, .move-down, .remove-stop {
-        margin-left: 5px;
+        width: 30px;
+        padding: 0.15rem 0.25rem;
+        margin-left: 0.25rem;
+    }
+    .list-group-item {
+        transition: all 0.2s ease;
     }
 </style>
 {% endblock %}

@@ -38,7 +38,7 @@
                     {% if group.name == 'BusAdmin' %}
                       <a class="nav-item nav-link" href="{% url 'bus-create' %}">New bus</a>
                       <a class="nav-item nav-link" href="{% url 'add-stop' %}">New stop</a>
-
+                      <a class="nav-item nav-link" href="{% url 'export-view' %}">Export Bookings</a>
                     {% elif group.name == 'Customer' %}
                       <a class="nav-item nav-link" href="{% url 'booked-buses' request.user %}">Bookings</a>
                     {% endif %}

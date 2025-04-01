@@ -11,6 +11,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   
   django-web:
     build:
@@ -24,7 +29,9 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db  # Ensures the database starts before the app
+      db:
+        condition: service_healthy
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput --clear && gunicorn --bind 0.0.0.0:8000 --workers 3 mysite.wsgi:application"
 
   frontend-proxy:
     image: nginx:latest

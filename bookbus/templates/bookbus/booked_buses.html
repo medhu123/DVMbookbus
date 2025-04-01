@@ -1,57 +1,137 @@
 {% extends "bookbus/base.html" %}
 
 {% block content %}
-
-    <h1 class="mb-3">Bookings by {{view.kwargs.username}} ({{page_obj.paginator.count}} Bookings)</h1>
-    {% for booking in bookings %}
-        <article class="media content-section">
-            <!--<img src="{{ bus.travels.profile.image.url }}" class="rounded-circle article-img">-->
-            <div class="media-body">
-            <div class="article-metadata">
-                <a class="mr-2" href="{% url 'user-buses' booking.bus.travels.username %}">🚎 {{ booking.bus.travels }}</a>
-                <!--<small class="text-muted">{{ object.date_added|date:"F d, Y @ H:i " }}</small>-->
-                <div>
-                    <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'bus-book-remove' booking.bus.id %}">Remove Booking</a></div>
+<div class="container booking-list">
+    <h1 class="mb-4">My Bookings</h1>
+    
+    {% if bookings %}
+    <div class="row">
+        {% for booking in bookings %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="badge 
+                        {% if booking.status == 'Confirmed' %}bg-success
+                        {% elif booking.status == 'Pending' %}bg-warning text-dark
+                        {% elif booking.status == 'Cancelled' %}bg-secondary
+                        {% else %}bg-primary{% endif %}">
+                        {{ booking.status|upper }}
+                    </span>
+                    <small class="text-muted">#{{ booking.id }}</small>
                 </div>
-                <div class="article-journey" onclick=''>
-                    <div>
-                        <h3>🏙️ {{ booking.bus.journey_start }}</h3>
-                        <h3>🗓️ {{ booking.bus.start_time.date}}</h3>
-                        <h3>⏰ {{ booking.bus.start_time.time}}</h3>
+                
+                <div class="card-body">
+                    <h5 class="card-title">{{ booking.bus.travels }}</h5>
+                    <p class="text-muted mb-3">
+                        {{ booking.travel_date|date:"D, M j, Y" }}
+                    </p>
+                    
+                    <div class="journey-info mb-3 p-3 bg-light rounded">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>FROM</strong>
+                                <h6 class="mb-1">{{ booking.start_stop }}</h6>
+                            </div>
+                            <div class="text-end">
+                                <strong>TO</strong>
+                                <h6 class="mb-1">{{ booking.end_stop }}</h6>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <h3>🏙️ {{ booking.bus.journey_end }}</h3>
-                        <h3>🗓️ {{ booking.bus.end_time.date}}</h3>
-                        <h3>⏰ {{ booking.bus.end_time.time}}</h3>
+                    
+                    <hr>
+                    
+                    <div class="seat-details">
+                        <h6>Seat Details:</h6>
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <span class="badge 
+                                {% if booking.seat.seat_class == 'General' %}bg-info
+                                {% elif booking.seat.seat_class == 'Sleeper' %}bg-primary
+                                {% else %}bg-warning text-dark{% endif %}">
+                                {{ booking.seat.name }} ({{ booking.seat.seat_class }})
+                            </span>
+                            <br>
+                            <span>₹{{ booking.seat.fare }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="passenger-info mb-3">
+                        <h6>Passenger:</h6>
+                        <p>Name : {{ booking.passenger_name }} &lt;({{ booking.passenger_email|stringformat:"s" }})&gt;</p>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            Booked on {{ booking.date_booked|date:"M j, Y" }}
+                        </small>
+                        {% if booking.status == 'Confirmed' or booking.status == 'Pending' %}
+                        <a href="{% url 'cancel-booking' booking.id %}" class="btn btn-sm btn-outline-danger">
+                            Cancel Booking
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
-                <p>Seats Booked : {{ booking.seats_booked }}</p>
-            
             </div>
-
-        </article>
-    {% endfor %}
-
-    {% if is_paginated %}
-
-      {% if page_obj.has_previous %}
-        <a class="btn btn-outline-info mb-4" href="?page=1">First</a>
-        <a class="btn btn-outline-info mb-4" href="?page={{ page_obj.previous_page_number }}">Previous</a>
-      {% endif %}
-
-      {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-          <a class="btn btn-info mb-4" href="?page={{ num }}">{{ num }}</a>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-          <a class="btn btn-outline-info mb-4" href="?page={{ num }}">{{ num }}</a>
-        {% endif %}
-      {% endfor %}
-
-      {% if page_obj.has_next %}
-        <a class="btn btn-outline-info mb-4" href="?page={{ page_obj.next_page_number }}">Next</a>
-        <a class="btn btn-outline-info mb-4" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
-      {% endif %}
-
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <h5>No bookings found</h5>
+        <p>Ready to book your next journey?</p>
+        <a href="{% url 'bookbus-home' %}" class="btn btn-primary">Browse Buses</a>
+    </div>
     {% endif %}
-{% endblock content %}
-pytho
+    
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">&laquo;&laquo;</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">&raquo;&raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+    .booking-list .card {
+        transition: transform 0.2s;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .booking-list .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .journey-info {
+        background-color: #f8f9fa;
+    }
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.35em 0.65em;
+    }
+</style>
+{% endblock %}

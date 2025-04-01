@@ -5,7 +5,6 @@ from .models import Profile
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField()
-    coins = forms.IntegerField()
 
     class Meta:
         model = User

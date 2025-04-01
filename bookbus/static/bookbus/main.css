@@ -109,3 +109,66 @@ body {
   .account-heading {
     font-size: 2.5rem;
   }
+
+.bus-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.bus-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.form-select, .form-control {
+    padding: 10px;
+    border-radius: 5px;
+}
+
+@media (max-width: 768px) {
+    .bus-card .col-md-5, .bus-card .col-md-3 {
+        margin-bottom: 1rem;
+    }
+}
+
+#stop-list li {
+  transition: all 0.3s ease;
+}
+.move-up, .move-down, .remove-stop {
+  margin-left: 5px;
+}
+.form-check-inline {
+  margin-right: 1rem;
+}
+.card {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+.form-control, .form-select {
+  border-radius: 0.25rem;
+}
+
+.stop-number {
+  margin-right: 8px;
+  font-weight: bold;
+}
+.stop-name {
+  flex-grow: 1;
+}
+#stop-list li {
+  display: flex;
+  align-items: center;
+}
+
+/* Export card styling */
+.export-card {
+  max-width: 600px;
+  margin: 2rem auto;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.export-card .btn {
+  padding: 10px 20px;
+  font-size: 1.1rem;
+}

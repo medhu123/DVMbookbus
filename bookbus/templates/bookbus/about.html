@@ -1,5 +1,105 @@
 {% extends "bookbus/base.html" %}
-
+{% load static %} 
 {% block content %}
-    <h1>This platform allows you to book buses!</h1>
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="text-center"><i class="bi bi-bus-front"></i> About Our Bus Booking Platform</h2>
+                </div>
+                <div class="card-body">
+
+                    <h3 class="text-primary mb-3">Your Journey Starts Here</h3>
+                    <p class="lead">
+                        Welcome to our comprehensive bus booking platform - your one-stop solution for convenient, reliable, 
+                        and comfortable bus travel arrangements.
+                    </p>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body">
+                                    <h4><i class="bi bi-search text-primary"></i> Easy Booking</h4>
+                                    <p>
+                                        Find and book buses with our intuitive search system. Filter by route, date, 
+                                        time, or bus type to find your perfect journey.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body">
+                                    <h4><i class="bi bi-calendar-check text-primary"></i> Flexible Options</h4>
+                                    <p>
+                                        Choose from daily, weekly, or one-time buses. Our platform supports both 
+                                        regular routes and special trips.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body">
+                                    <h4><i class="bi bi-credit-card text-primary"></i> Secure Payments</h4>
+                                    <p>
+                                        All transactions are protected with industry-standard security measures. 
+                                        Book with confidence knowing your payment is safe.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body">
+                                    <h4><i class="bi bi-person-check text-primary"></i> Passenger Focused</h4>
+                                    <p>
+                                        Manage all your bookings in one place. View past trips, download tickets, 
+                                        and make changes to upcoming journeys.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-4 bg-light rounded">
+                        <h4 class="text-primary">For Bus Operators</h4>
+                        <p>
+                            Are you a bus operator? Join our platform to manage your fleet efficiently. 
+                            Our system provides:
+                        </p>
+                        <ul class="list-group list-group-flush mb-3">
+                            <li class="list-group-item bg-light"><i class="bi bi-check-circle text-success"></i> Real-time seat management</li>
+                            <li class="list-group-item bg-light"><i class="bi bi-check-circle text-success"></i> Route and schedule planning</li>
+                            <li class="list-group-item bg-light"><i class="bi bi-check-circle text-success"></i> Passenger analytics</li>
+                        </ul>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <h4>Ready to Travel?</h4>
+                        <a href="{% url 'bookbus-home' %}" class="btn btn-primary btn-lg">Book Your Bus Now</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .list-group-item {
+        border-left: none;
+        border-right: none;
+    }
+</style>
 {% endblock content %}

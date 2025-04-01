@@ -1,51 +1,272 @@
 {% extends "bookbus/base.html" %}
+{% load bus_tags %}
 
 {% block content %}
-    <h1>Selected bus</h1>
-    <article class="media content-section">
-        <!--<img src="{{ bus.travels.profile.image.url }}" class="rounded-circle article-img">-->
-
-        <div class="media-body">
-            <div class="article-metadata">
-                <a class="mr-2" href="{% url 'user-buses' bus.travels.username %}">🚎 {{ bus.travels }}</a>
-                <!--<small class="text-muted">{{ object.date_added|date:"F d, Y @ H:i " }}</small>-->
-                {% if object.travels == user %}
-                    <div>
-                        <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'bus-update' object.id %}">Update</a>
-                        <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'bus-delete' object.id %}" >Delete</a>
-                    </div>
-                {% endif %}
-
-                {% for group in user.groups.all %}
-                    {% if group.name == 'Customer' %}
-                        <div>
-                            <a class="btn btn-info btn-sm mt-1 mb-1" href="{% url 'bus-book-add' object.id %}">Book</a>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-
-            </div>
-              <div class="article-journey" onclick='location.href="{% url 'bus-detail' bus.id %}";'>
-                  <div>
-                    <h3>🏙️ {{ bus.journey_start }}</h3>
-                    <h3>🗓️ {{ bus.start_time.date}}</h3>
-                    <h3>⏰ {{ bus.start_time.time}}</h3>
-                  </div>
-                  <div>
-                    <h3>🏙️ {{ bus.journey_end }}</h3>
-                    <h3>🗓️ {{ bus.end_time.date}}</h3>
-                    <h3>⏰ {{ bus.end_time.time}}</h3>
-                  </div>
-              </div>
-              <p class="article-content">
-                {% if bus.stops %}
-                  Stops: {{ bus.stops|join:" → " }} | Available Seats: {{ bus.available_seats }} | Fare: ₹{{ bus.fare }}
-                {% else %}
-                  No stops | Available Seats: {{ bus.available_seats }} | Fare: ₹{{ bus.fare }}
-                {% endif %}
-              </p>
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Bus Details</h1>
+        {% if object.travels == user %}
+        <div>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'bus-update' object.id %}">
+                <i class="bi bi-pencil"></i> Update
+            </a>
+            <a class="btn btn-outline-danger btn-sm" href="{% url 'bus-delete' object.id %}">
+                <i class="bi bi-trash"></i> Delete
+            </a>
         </div>
-            
-    </article>
+        {% endif %}
+    </div>
 
+    <div class="card shadow-lg mb-5">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-bus-front"></i> {{ bus.travels.username }}
+                </h4>
+                <span class="badge bg-light text-dark">
+                    {% if bus.is_recurring %}
+                    Runs on fixed days
+                    {% else %}
+                    Runs Everyday
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <!-- Journey Summary -->
+            <div class="journey-summary mb-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-center">
+                        <h4 class="text-primary">{{ bus.bus_stops.first.stop.name }}</h4>
+                        <div class="text-muted">
+                            <i class="bi bi-clock"></i> {{ bus.bus_stops.first.get_arrival_time_display }}
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <i class="bi bi-arrow-right fs-4 text-muted"></i>
+                        <div class="small text-muted">
+                            {% with first_stop=bus.bus_stops.first last_stop=bus.bus_stops.last %}
+                            {% if first_stop and last_stop %}
+                                Total duration: {{ first_stop|time_until:last_stop }}
+                            {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <h4 class="text-primary">{{ bus.bus_stops.last.stop.name }}</h4>
+                        <div class="text-muted">
+                            <i class="bi bi-clock"></i> {{ bus.bus_stops.last.get_arrival_time_display }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Information -->
+            <div class="alert alert-info mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-calendar-event me-2 fs-4"></i>
+                    <div>
+                        <strong>Schedule:</strong>
+                        {% if bus.is_recurring %}
+                        Runs every {{ bus.operating_days_display }}
+                        {% else %}
+                        One-time service
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Route Stops -->
+            <div class="mb-4">
+                <h5><i class="bi bi-signpost-split"></i> Route Stops</h5>
+                <div class="route-stops-vertical">
+                    {% for bus_stop in bus.bus_stops.all %}
+                    <div class="stop-item-vertical {% if forloop.first %}first-stop{% elif forloop.last %}last-stop{% endif %}">
+                        <div class="stop-info">
+                            <span class="stop-order">{{ bus_stop.stop_order }}</span>
+                            <span class="stop-name">{{ bus_stop.stop.name }}</span>
+                            <span class="stop-time">
+                                {{ bus_stop.get_arrival_time_display }}
+                                {% if not forloop.first %}
+                                    <span class="text-muted small ms-2">
+                                        {{ bus_stop|time_since_previous_stop }}
+                                    </span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% if not forloop.last %}
+                        <div class="stop-connector">
+                            <div class="stop-line"></div>
+                            <div class="stop-dot"></div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="text-muted">No stops configured</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Seat Information -->
+            <div class="mb-4">
+                <h5><i class="bi bi-seat"></i> Seat Availability</h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card text-center mb-3">
+                            <div class="card-header bg-info text-white">
+                                General Class
+                            </div>
+                            <div class="card-body">
+                                <h3 class="card-title">{{ bus.general_seats }}</h3>
+                                <p class="card-text">Seats Available</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center mb-3">
+                            <div class="card-header bg-primary text-white">
+                                Sleeper Class
+                            </div>
+                            <div class="card-body">
+                                <h3 class="card-title">{{ bus.sleeper_seats }}</h3>
+                                <p class="card-text">Seats Available</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center mb-3">
+                            <div class="card-header bg-warning text-dark">
+                                Luxury Class
+                            </div>
+                            <div class="card-body">
+                                <h3 class="card-title">{{ bus.luxury_seats }}</h3>
+                                <p class="card-text">Seats Available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            {% for group in user.groups.all %}
+                {% if group.name == 'Customer' %}
+                <div class="d-grid gap-2">
+                    <a href="{% url 'bus-book' object.id %}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-ticket-perforated"></i> Book Now
+                    </a>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="card-footer text-muted">
+            <small>
+                Bus added on {{ bus.date_added|date:"M j, Y" }}
+                {% if bus.travels == user %}
+                | <a href="{% url 'user-buses' bus.travels.username %}">View all your buses</a>
+                {% endif %}
+            </small>
+        </div>
+    </div>
+</div>
+
+<style>
+    .journey-summary {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    
+    .route-stops-vertical {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .stop-item-vertical {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        padding: 10px 0;
+    }
+    
+    .stop-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .stop-order {
+        background-color: #0d6efd;
+        color: white;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    
+    .stop-name {
+        font-weight: 500;
+        flex-grow: 1;
+    }
+    
+    .stop-time {
+        background-color: #e9ecef;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        color: #495057;
+        display: flex;
+        align-items: center;
+    }
+    
+    .first-stop .stop-order {
+        background-color: #198754;
+    }
+    
+    .last-stop .stop-order {
+        background-color: #dc3545;
+    }
+    
+    .stop-connector {
+        position: relative;
+        height: 20px;
+        margin-left: 12px;
+        width: 2px;
+    }
+    
+    .stop-line {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #adb5bd;
+    }
+    
+    .stop-dot {
+        position: absolute;
+        left: -3px;
+        top: 50%;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #adb5bd;
+        transform: translateY(-50%);
+    }
+    
+    .alert-info {
+        background-color: #e7f5ff;
+        border-color: #d0ebff;
+        color: #1864ab;
+    }
+</style>
 {% endblock content %}

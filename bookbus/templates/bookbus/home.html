@@ -1,9 +1,10 @@
 {% extends "bookbus/base.html" %}
 {% load crispy_forms_tags %}
+{% load bus_tags %}
 
 {% block content %}
     <main class="container mt-4">
-        <!-- Improved Filter Section -->
+        <!-- Filter Section -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
                 <h3 class="mb-0">Find Your Bus</h3>
@@ -11,33 +12,49 @@
             <div class="card-body">
                 <form method="GET" action="{% url 'bookbus-home' %}">
                     <div class="row g-3 align-items-end">
-                        <div class="col-md-5">
-                            <label for="journey_start" class="form-label">From</label>
-                            <select name="journey_start" id="journey_start" class="form-select">
+                        <!-- Start Stop -->
+                        <div class="col-md-4">
+                            <label for="id_journey_start" class="form-label">From</label>
+                            <select name="journey_start" id="id_journey_start" class="form-select">
                                 <option value="">-- Any Stop --</option>
-                                {% for city in start_cities %}
-                                    <option value="{{ city }}" {% if request.GET.journey_start == city %}selected{% endif %}>
-                                        {{ city }}
+                                {% for stop in start_cities %}
+                                    <option value="{{ stop.id }}" 
+                                        {% if form.journey_start.value == stop.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ stop.name }}
                                     </option>
                                 {% endfor %}
                             </select>
                         </div>
                         
-                        <div class="col-md-5">
-                            <label for="journey_end" class="form-label">To</label>
-                            <select name="journey_end" id="journey_end" class="form-select">
+                        <!-- End Stop -->
+                        <div class="col-md-4">
+                            <label for="id_journey_end" class="form-label">To</label>
+                            <select name="journey_end" id="id_journey_end" class="form-select">
                                 <option value="">-- Any Stop --</option>
-                                {% for city in end_cities %}
-                                    <option value="{{ city }}" {% if request.GET.journey_end == city %}selected{% endif %}>
-                                        {{ city }}
+                                {% for stop in end_cities %}
+                                    <option value="{{ stop.id }}"
+                                        {% if form.journey_end.value == stop.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ stop.name }}
                                     </option>
                                 {% endfor %}
                             </select>
                         </div>
                         
-                        <div class="col-md-2 d-grid">
+                        <!-- Travel Date -->
+                        <div class="col-md-3">
+                            <label for="id_travel_date" class="form-label">Travel Date</label>
+                            <input type="date" 
+                                   name="travel_date" 
+                                   id="id_travel_date"
+                                   class="form-control"
+                                   min="{{ today|date:'Y-m-d' }}"
+                                   value="{{ request.GET.travel_date }}">
+                        </div>
+                        
+                        <!-- Search Button -->
+                        <div class="col-md-1 d-grid">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-search"></i> Search
+                                <i class="bi bi-search"></i>
                             </button>
                         </div>
                     </div>
@@ -75,7 +92,7 @@
                             <div class="col-md-2 d-flex align-items-center justify-content-center">
                                 <div class="text-center">
                                     <i class="bi bi-arrow-right text-muted" style="font-size: 1.5rem;"></i>
-                                    <div class="text-muted small">₹{{ bus.fare }}</div>
+                                    <div class="text-muted small">TO</div>
                                 </div>
                             </div>
                             
@@ -94,11 +111,11 @@
                         <div class="d-flex justify-content-between">
                             <div>
                                 <i class="bi bi-signpost-split"></i>
-                                {% if bus.stops %}
-                                    {{ bus.stops|join:" → " }}
-                                {% else %}
+                                {% for bus_stop in bus.bus_stops.all %}
+                                    {{ bus_stop.stop.name }}{% if not forloop.last %} → {% endif %}
+                                {% empty %}
                                     No stops
-                                {% endif %}
+                                {% endfor %}
                             </div>
                             
                             <div>
@@ -107,6 +124,18 @@
                                 </span>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Schedule Info -->
+                    <div class="card-footer bg-transparent">
+                        <small class="text-muted">
+                            {% if bus.is_recurring %}
+                                Runs on: {{ bus.operating_days_display }}
+                                (from {{ bus.start_time|date:"M d" }} to {{ bus.end_time|date:"M d" }})
+                            {% else %}
+                                Runs: {{ bus.start_time|date:"M d" }} to {{ bus.end_time|date:"M d" }}
+                            {% endif %}
+                        </small>
                     </div>
                 </div>
             </div>
@@ -160,5 +189,4 @@
         </nav>
         {% endif %}
     </main>
-
 {% endblock content %}
