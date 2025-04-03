@@ -38,7 +38,7 @@ CSRF_TRUSTED_ORIGINS = env('DJANGO_CSRF_TRUSTED_ORIGINS').split(",")
 
 # Application definition
 
-SITE_ID=3
+SITE_ID=4
 
 INSTALLED_APPS = [
     'users.apps.UsersConfig',
