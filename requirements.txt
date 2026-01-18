@@ -1,24 +1,59 @@
+# Core Python/Django
+setuptools==69.5.1  # Required for pkg_resources
 asgiref==3.8.1
-certifi==2025.1.31
-cffi==1.17.1
-charset-normalizer==3.4.1
-crispy-bootstrap4==2024.10
-cryptography==44.0.1
 Django==5.1.7
-django-allauth==65.4.1
-django-crispy-forms==2.3
-django-environ==0.12.0
-gunicorn==23.0.0
-idna==3.10
-oauthlib==3.2.2
-packaging==24.2
-pillow==11.1.0
-psycopg2-binary==2.9.10
-pycparser==2.22
-PyJWT==2.10.1
-python-dotenv==1.0.1
-requests==2.32.3
-requests-oauthlib==2.0.0
 sqlparse==0.5.3
+
+# Database
+psycopg2-binary==2.9.10
+
+# Server
+gunicorn==23.0.0
+
+# Authentication
+django-allauth==65.4.1
+oauthlib==3.2.2
+PyJWT==2.10.1
+requests-oauthlib==2.0.0
+
+# Forms/UI
+django-crispy-forms==2.3
+crispy-bootstrap4==2024.10
+
+# Environment
+django-environ==0.12.0
+python-dotenv==1.0.1
+
+# Security
+certifi==2025.1.31
+cryptography==44.0.1
+cffi==1.17.1
+pycparser==2.22
+
+# HTTP/Networking
+requests==2.32.3
 urllib3==2.3.0
+charset-normalizer==3.4.1
+idna==3.10
+
+# Media
+Pillow==11.1.0
+
+# Excel
 openpyxl==3.1.2
+packaging==24.2
+
+# Location/Countries
+django-countries==7.5.1  # Requires setuptools
+
+# Date/Time
+python-dateutil==2.9.0.post0
+pytz==2024.1
+
+# Development (optional)
+black==24.4.2
+flake8==7.1.0
+
+# GeoDjango
+pyproj==3.6.1
+geopy==2.4.1

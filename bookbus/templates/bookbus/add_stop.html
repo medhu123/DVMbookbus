@@ -1,17 +1,87 @@
-{% extends "bookbus/base.html" %}
-{% load crispy_forms_tags %}
+{% extends 'bookbus/base.html' %}
 
 {% block content %}
-<div class="content-section">
-    <form method="POST">
-        {% csrf_token %}
-        <fieldset class="form-group">
-            <legend class="border-bottom mb-4">Add Stop</legend>
-            {{ form|crispy }}
-        </fieldset>
-        <div class="form-group">
-            <button class="btn btn-outline-info" type="submit">Add Stop</button>
-        </div>
-    </form>
-</div>
-{% endblock content %}
+<h2>Add New Stop</h2>
+<form method="post" id="stop-form">
+    {% csrf_token %}
+    
+    <!-- Basic Fields -->
+    {{ form.name.label_tag }} {{ form.name }}
+    {{ form.country.label_tag }} {{ form.country }}
+    {{ form.city.label_tag }} {{ form.city }}
+    {{ form.address.label_tag }} {{ form.address }}
+
+    <!-- Hidden fields for lat/lng -->
+    <input type="hidden" name="latitude" id="id_latitude" value="{{ form.latitude.value|default:'' }}">
+    <input type="hidden" name="longitude" id="id_longitude" value="{{ form.longitude.value|default:'' }}">
+
+    <!-- Map Container -->
+    <div id="map" style="height: 500px; width: 100%; margin: 20px 0;"></div>
+    
+    <button type="submit" class="btn btn-primary">Save Stop</button>
+</form>
+
+<!-- Leaflet with Geocoder -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const map = L.map('map').setView([20.5937, 78.9629], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    
+    let marker = null;
+
+    // Add search to map
+    const geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false,
+        position: 'topright'
+    }).addTo(map);
+    
+    geocoder.on('markgeocode', function(e) {
+        const { center } = e.geocode;
+        updateMarker(center);
+        updateFormFields(center.lat, center.lng);
+        map.setView(center, 16);
+    });
+    
+    map.on('click', function(e) {
+        updateMarker(e.latlng);
+        updateFormFields(e.latlng.lat, e.latlng.lng);
+    });
+    
+    const initialLat = parseFloat("{{ form.latitude.value|default:'0' }}");
+    const initialLng = parseFloat("{{ form.longitude.value|default:'0' }}");
+    if (initialLat && initialLng) {
+        const initialLocation = L.latLng(initialLat, initialLng);
+        updateMarker(initialLocation);
+        map.setView(initialLocation, 16);
+    }
+
+    function updateMarker(latlng) {
+        if (marker) {
+            marker.setLatLng(latlng);
+        } else {
+            marker = L.marker(latlng, {draggable: true}).addTo(map);
+            marker.on('dragend', function() {
+                const newLatLng = marker.getLatLng();
+                updateFormFields(newLatLng.lat, newLatLng.lng);
+            });
+        }
+    }
+
+    function updateFormFields(lat, lng) {
+        document.getElementById('id_latitude').value = lat;
+        document.getElementById('id_longitude').value = lng;
+    }
+});
+</script>
+
+<style>
+.leaflet-control-geocoder-form {
+    width: 300px;
+}
+</style>
+{% endblock %}

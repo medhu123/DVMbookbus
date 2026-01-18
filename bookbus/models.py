@@ -5,12 +5,19 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth.models import User
 import datetime
+from django_countries.fields import CountryField
 
 class Stop(models.Model):
     name = models.CharField(max_length=255, unique=True)
+    country = CountryField()
+    city = models.CharField(max_length=100)
+    latitude = models.FloatField(null=False)
+    longitude = models.FloatField(null=False)
 
     def __str__(self):
-        return self.name
+        return f"{self.name}, {self.city}, {self.country.name}"
+    
+    
 
 class Bus(models.Model):
     DAY_CHOICES = [
@@ -73,13 +80,11 @@ class Bus(models.Model):
         date = date.date() if hasattr(date, 'date') else date
         weekday = date.weekday()
         
-        # Check if date falls within bus schedule dates
         within_date_range = self.start_time.date() <= date <= self.end_time.date()
         
-        # For recurring buses, check operating days OR date range
         if self.operating_days:
             return within_date_range and (weekday in self.operating_days)
-        # For one-time buses, just check date range
+
         return within_date_range
 
     @property
@@ -149,8 +154,8 @@ class Seat(models.Model):
     fare = models.IntegerField(default=0)
     
     def get_status(self, travel_date):
-        """Dynamic status based on bookings for the given date"""
-        if self.bookings.filter(travel_date=travel_date).exists():
+        """Dynamic status based on non-cancelled bookings for the given date"""
+        if self.bookings.filter(travel_date=travel_date).exclude(status="Cancelled").exists():
             return "Booked"
         return "Available"
 
@@ -181,31 +186,34 @@ class Booking(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
+    
     class Meta:
-        ordering = ['-date_booked']  # Add this line
-        unique_together = ('bus', 'seat', 'travel_date')
+        ordering = ['-date_booked']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['bus', 'seat', 'travel_date'],
+                name='unique_active_booking',
+                condition=models.Q(status__in=['Pending', 'Confirmed', 'Completed'])
+            )
+        ]
 
     @classmethod
     def add_booking(cls, bus, customer, seat, start_stop, end_stop):
         """Prevents overlapping seat bookings."""
         overlapping_bookings = cls.objects.filter(
-            bus=bus, seat=seat
+            bus=bus, 
+            seat=seat
+        ).exclude(
+            status__in=['Cancelled', 'Refunded']
         ).filter(
-            models.Q(start_stop__stop_order__lt=end_stop.stop_order, end_stop__stop_order__gt=start_stop.stop_order)
+            models.Q(start_stop__stop_order__lt=end_stop.stop_order, 
+                    end_stop__stop_order__gt=start_stop.stop_order)
         )
 
         if overlapping_bookings.exists():
             raise ValueError(f'Seat {seat} is already booked for this route segment!')
 
         return cls.objects.create(bus=bus, customer=customer, seat=seat, start_stop=start_stop, end_stop=end_stop)
-
-    @classmethod
-    def remove_booking(cls, bus, customer, seat):
-        booking = cls.objects.filter(bus=bus, customer=customer, seat=seat).first()
-        if booking:
-            booking.delete()
-        else:
-            raise ValueError("Booking not found!")
 
     def __str__(self):
         return f'Booking: {self.customer} - {self.seat} on {self.bus} ({self.start_stop} → {self.end_stop})'
@@ -216,17 +224,24 @@ class Booking(models.Model):
             try:
                 self.travel_date = datetime.datetime.strptime(self.travel_date, '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                pass  # Handle invalid date format as needed
+                pass
         
         # Update seat status based on booking status
-        if self.status in ['Pending', 'Confirmed']:
+        if self.status == 'Confirmed':
             self.seat.status = 'Booked'
-        elif self.status == 'Cancelled':
+        elif self.status in ['Cancelled', 'Refunded']:
             self.seat.status = 'Available'
         self.seat.save()
         
-        # Update status to Completed if travel date has passed
-        if isinstance(self.travel_date, datetime.date) and self.travel_date < timezone.now().date() and self.status != 'Cancelled':
+        # Mark as completed if travel date passed
+        if isinstance(self.travel_date, datetime.date) and self.travel_date < timezone.now().date() and self.status not in ['Cancelled', 'Refunded']:
             self.status = 'Completed'
             
         super().save(*args, **kwargs)
+
+class PassengerOTP(models.Model):
+    email = models.EmailField()
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_verified = models.BooleanField(default=False)
+    booking = models.ForeignKey('Booking', on_delete=models.CASCADE, null=True, blank=True)

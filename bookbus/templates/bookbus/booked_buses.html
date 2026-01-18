@@ -7,72 +7,74 @@
     {% if bookings %}
     <div class="row">
         {% for booking in bookings %}
-        <div class="col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span class="badge 
-                        {% if booking.status == 'Confirmed' %}bg-success
-                        {% elif booking.status == 'Pending' %}bg-warning text-dark
-                        {% elif booking.status == 'Cancelled' %}bg-secondary
-                        {% else %}bg-primary{% endif %}">
-                        {{ booking.status|upper }}
-                    </span>
-                    <small class="text-muted">#{{ booking.id }}</small>
-                </div>
-                
-                <div class="card-body">
-                    <h5 class="card-title">{{ booking.bus.travels }}</h5>
-                    <p class="text-muted mb-3">
-                        {{ booking.travel_date|date:"D, M j, Y" }}
-                    </p>
+            {% if booking.customer == request.user %}  <!-- Add this condition -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span class="badge 
+                            {% if booking.status == 'Confirmed' %}bg-success
+                            {% elif booking.status == 'Pending' %}bg-warning text-dark
+                            {% elif booking.status == 'Cancelled' %}bg-secondary
+                            {% else %}bg-primary{% endif %}">
+                            {{ booking.status|upper }}
+                        </span>
+                        <small class="text-muted">#{{ booking.id }}</small>
+                    </div>
                     
-                    <div class="journey-info mb-3 p-3 bg-light rounded">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <strong>FROM</strong>
-                                <h6 class="mb-1">{{ booking.start_stop }}</h6>
-                            </div>
-                            <div class="text-end">
-                                <strong>TO</strong>
-                                <h6 class="mb-1">{{ booking.end_stop }}</h6>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ booking.bus.travels }}</h5>
+                        <p class="text-muted mb-3">
+                            {{ booking.travel_date|date:"D, M j, Y" }}
+                        </p>
+                        
+                        <div class="journey-info mb-3 p-3 bg-light rounded">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>FROM</strong>
+                                    <h6 class="mb-1">{{ booking.start_stop }}</h6>
+                                </div>
+                                <div class="text-end">
+                                    <strong>TO</strong>
+                                    <h6 class="mb-1">{{ booking.end_stop }}</h6>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <div class="seat-details">
-                        <h6>Seat Details:</h6>
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <span class="badge 
-                                {% if booking.seat.seat_class == 'General' %}bg-info
-                                {% elif booking.seat.seat_class == 'Sleeper' %}bg-primary
-                                {% else %}bg-warning text-dark{% endif %}">
-                                {{ booking.seat.name }} ({{ booking.seat.seat_class }})
-                            </span>
-                            <br>
-                            <span>₹{{ booking.seat.fare }}</span>
+                        
+                        <hr>
+                        
+                        <div class="seat-details">
+                            <h6>Seat Details:</h6>
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <span class="badge 
+                                    {% if booking.seat.seat_class == 'General' %}bg-info
+                                    {% elif booking.seat.seat_class == 'Sleeper' %}bg-primary
+                                    {% else %}bg-warning text-dark{% endif %}">
+                                    {{ booking.seat.name }} ({{ booking.seat.seat_class }})
+                                </span>
+                                <br>
+                                <span>₹{{ booking.seat.fare }}</span>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="passenger-info mb-3">
-                        <h6>Passenger:</h6>
-                        <p>Name : {{ booking.passenger_name }} &lt;({{ booking.passenger_email|stringformat:"s" }})&gt;</p>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            Booked on {{ booking.date_booked|date:"M j, Y" }}
-                        </small>
-                        {% if booking.status == 'Confirmed' or booking.status == 'Pending' %}
-                        <a href="{% url 'cancel-booking' booking.id %}" class="btn btn-sm btn-outline-danger">
-                            Cancel Booking
-                        </a>
-                        {% endif %}
+                        
+                        <div class="passenger-info mb-3">
+                            <h6>Passenger:</h6>
+                            <p>Name : {{ booking.passenger_name }} &lt;({{ booking.passenger_email|stringformat:"s" }})&gt;</p>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                Booked on {{ booking.date_booked|date:"M j, Y" }}
+                            </small>
+                            {% if booking.status == 'Confirmed' or booking.status == 'Pending' %}
+                            <a href="{% url 'cancel-booking' booking.id %}" class="btn btn-sm btn-outline-danger">
+                                Cancel Booking
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+            {% endif %}  <!-- End of condition -->
         {% endfor %}
     </div>
     {% else %}

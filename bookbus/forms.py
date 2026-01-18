@@ -3,6 +3,7 @@ from django.db import models
 from .models import Bus, Booking, BusStop, Seat, Stop
 from django.db.models import Q, F
 import datetime
+from django_countries import countries
 
 class SeatSelectionForm(forms.Form):
     travel_date = forms.DateField(
@@ -240,11 +241,19 @@ class FilterForm(forms.Form):
     class Meta:
         fields = ['journey_start', 'journey_end', 'travel_date']
 
-
 class StopForm(forms.ModelForm):
+    country = forms.ChoiceField(
+        choices=[('', 'Select Country')] + list(countries),
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    city = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control'}))
+
     class Meta:
         model = Stop
-        fields = ['name']
+        fields = ['name', 'country', 'city', 'latitude', 'longitude']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter stop name'})
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'latitude': forms.HiddenInput(),
+            'longitude': forms.HiddenInput(),
         }

@@ -11,3 +11,7 @@ def get_field(form, field_name):
 def add(value, arg):
     """Concatenate value and arg"""
     return f"{value}{arg}"
+
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)

@@ -25,6 +25,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/signup/', user_views.register, name="register"),
+    path('verify-email/', user_views.verify_email, name='verify_email'),
+    path('resend-otp/', user_views.resend_otp, name='resend_otp'),
     path('profile/', user_views.profile, name="profile"),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='users/login.html'), name="login"),
     path('logout/', auth_views.LogoutView.as_view(template_name='users/logout.html'), name="logout"),

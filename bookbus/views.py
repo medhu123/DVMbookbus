@@ -6,15 +6,22 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from .models import Bus, Booking, BusStop, Seat, Stop
 from .forms import BookingSeatForm, FilterForm, BusForm, StopForm, BusStopForm, SeatSelectionForm, PassengerInfoForm
 from django.db.models import Q, F, Subquery, OuterRef, Prefetch, Exists, BooleanField, Value
-import datetime
+import datetime, math
 from django.utils import timezone
 from django.forms import ValidationError
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden
+from django.urls import reverse_lazy
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, Alignment
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .utils.otp_utils import send_otp_email
+from .utils.transaction_utils import create_transaction
+import requests
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +36,6 @@ def home(request):
         end_stop = form.cleaned_data.get('journey_end')
         travel_date = form.cleaned_data.get('travel_date')
         
-        # Stop order filtering
         if start_stop and end_stop:
             start_pos = Subquery(
                 BusStop.objects.filter(
@@ -372,6 +378,8 @@ def bus_book(request, pk):
     booking_data = request.session.get('booking_data', {
         'selected_seats': [],
         'travel_date': None,
+        'verified_emails': {},  # {email: seat_id}
+        'sent_otps': {}  # {email: timestamp}
     })
 
     if request.method == 'POST':
@@ -393,6 +401,7 @@ def bus_book(request, pk):
                     # Update session with new date and clear selections
                     booking_data['travel_date'] = travel_date_str
                     booking_data['selected_seats'] = []
+                    booking_data['verified_emails'] = {}
                     request.session['booking_data'] = booking_data
                     request.session.modified = True
                     
@@ -412,14 +421,14 @@ def bus_book(request, pk):
                 messages.error(request, "Invalid travel date in session")
                 return redirect('bus-book', pk=bus.pk)
             
-            # Get selected seats from POST data - ensure we only get unique seats
+            # Get selected seats from POST data
             selected_seats = list(set(request.POST.getlist('seats')))
             
             if not selected_seats:
                 messages.error(request, "Please select at least one seat")
                 return redirect('bus-book', pk=bus.pk)
             
-            # Convert to integers and validate they exist
+            # Convert to integers and validate
             valid_seat_ids = []
             for seat_id in selected_seats:
                 try:
@@ -436,12 +445,13 @@ def bus_book(request, pk):
             # Check seat availability
             unavailable_seats = Booking.objects.filter(
                 seat_id__in=valid_seat_ids,
-                travel_date=travel_date,
-                status='Confirmed'  # Only check confirmed bookings
+                travel_date=travel_date
+            ).exclude(
+                status__in=['Cancelled', 'Refunded']  # Exclude cancelled bookings
             ).values_list('seat_id', flat=True)
-            
+
             if unavailable_seats.exists():
-                messages.error(request, f"Seat(s) {', '.join(map(str, unavailable_seats))} are no longer available")
+                messages.error(request, f"Seat(s) {', '.join(map(str, unavailable_seats))} are unavailable")
                 return redirect('bus-book', pk=bus.pk)
             
             # Update session with selected seats
@@ -472,78 +482,194 @@ def bus_book(request, pk):
             
             # Check if user has enough coins
             if profile.coins < total_cost:
-                messages.error(request, f"You don't have enough coins. Needed: {total_cost}, Available: {profile.coins}")
+                messages.error(request, f"Insufficient coins. Needed: {total_cost}, Available: {profile.coins}")
                 return redirect('bus-book', pk=bus.pk)
             
-            # Only validate for the actual selected seats
+            # Verify OTPs and collect passenger data
+            verified_bookings = []
             passenger_errors = []
+            
             for i in range(len(selected_seats)):
+                seat_id = selected_seats[i]
                 name = request.POST.get(f'passenger_name_{i}', '').strip()
                 email = request.POST.get(f'passenger_email_{i}', '').strip()
+                otp = request.POST.get(f'passenger_otp_{i}', '').strip()
                 
+                # Basic validation
                 if not name:
-                    passenger_errors.append(f"Passenger {i+1}: Name is required")
+                    passenger_errors.append(f"Passenger {i+1}: Name required")
                 if not email or '@' not in email:
-                    passenger_errors.append(f"Passenger {i+1}: Valid email is required")
+                    passenger_errors.append(f"Passenger {i+1}: Valid email required")
+
+                start_stop = request.POST.get(f'start_stop_{i}')
+                end_stop = request.POST.get(f'end_stop_{i}')
+                
+                # Validate start and end stops
+                if start_stop and end_stop and start_stop == end_stop:
+                    passenger_errors.append(f"Passenger {i+1}: Departure and arrival stations cannot be the same")
+                
+                # Check OTP verification
+                if email in booking_data['verified_emails'] and booking_data['verified_emails'][email] == seat_id:
+                    verified_bookings.append({
+                        'seat_id': seat_id,
+                        'name': name,
+                        'email': email,
+                        'start_stop': request.POST.get(f'start_stop_{i}'),
+                        'end_stop': request.POST.get(f'end_stop_{i}')
+                    })
+                elif otp:
+                    from .utils.otp_utils import verify_otp
+                    if verify_otp(email, otp):
+                        booking_data['verified_emails'][email] = seat_id
+                        verified_bookings.append({
+                            'seat_id': seat_id,
+                            'name': name,
+                            'email': email,
+                            'start_stop': request.POST.get(f'start_stop_{i}'),
+                            'end_stop': request.POST.get(f'end_stop_{i}')
+                        })
+                    else:
+                        passenger_errors.append(f"Passenger {i+1}: Invalid OTP")
+                else:
+                    passenger_errors.append(f"Passenger {i+1}: OTP required")
             
             if passenger_errors:
                 for error in passenger_errors:
                     messages.error(request, error)
                 return redirect('bus-book', pk=bus.pk)
             
-            # Process booking in transaction
+            if not verified_bookings:
+                messages.error(request, "No verified bookings to process")
+                return redirect('bus-book', pk=bus.pk)
+            
+            # Process verified bookings
             with transaction.atomic():
                 successful_bookings = 0
-                unavailable_seats = []
-                for i, seat_id in enumerate(selected_seats):
+                actual_cost = 0
+                
+                for booking in verified_bookings:
                     try:
-                        seat = Seat.objects.select_for_update().get(pk=seat_id, bus=bus)
+                        seat = Seat.objects.select_for_update().get(pk=booking['seat_id'], bus=bus)
                         
                         # Double-check availability
-                        if Booking.objects.filter(seat=seat, travel_date=travel_date).exists():
-                            messages.warning(request, f"Seat {seat.name} was already booked")
+                        if Booking.objects.filter(seat=seat, travel_date=travel_date).exclude(status__in=['Cancelled', 'Refunded']).exists():
                             continue
                         
                         # Get boarding and destination points
                         try:
-                            start_stop = bus.bus_stops.get(id=request.POST.get(f'start_stop_{i}'))
-                            end_stop = bus.bus_stops.get(id=request.POST.get(f'end_stop_{i}'))
+                            start_stop = bus.bus_stops.get(id=booking['start_stop'])
+                            end_stop = bus.bus_stops.get(id=booking['end_stop'])
+
+                            if start_stop == end_stop:
+                                continue
                         except (ValueError, BusStop.DoesNotExist):
-                            messages.error(request, f"Invalid stops for seat {seat.name}")
                             continue
                         
                         # Create booking
-                        Booking.objects.create(
+                        new_booking = Booking.objects.create(
                             bus=bus,
                             customer=request.user,
                             seat=seat,
                             start_stop=start_stop.stop,
                             end_stop=end_stop.stop,
                             travel_date=travel_date,
-                            passenger_name=request.POST.get(f'passenger_name_{i}'),
-                            passenger_email=request.POST.get(f'passenger_email_{i}'),
+                            passenger_name=booking['name'],
+                            passenger_email=booking['email'],
                             status='Confirmed'
                         )
                         successful_bookings += 1
+                        actual_cost += seat.fare
+
+                        subject = f'Booking Confirmation - {new_booking.bus}'
+                        message = f"""
+                        Dear {new_booking.passenger_name},
+                        
+                        Your booking has been confirmed. Here are your travel details:
+                        
+                        Bus: {new_booking.bus}
+                        Seat: {new_booking.seat.name} ({new_booking.seat.seat_class})
+                        Travel Date: {new_booking.travel_date}
+                        From: {new_booking.start_stop}
+                        To: {new_booking.end_stop}
+                        Fare: ₹{new_booking.seat.fare}
+                        
+                        Thank you for choosing our service!
+                        """
+
+                        # Mailgun API request
+                        response = requests.post(
+                            "https://api.mailjet.com/v3.1/send",
+                            auth=(settings.MAILJET_API_KEY, settings.MAILJET_API_SECRET),
+                            json={
+                                "Messages": [
+                                    {
+                                        "From": {
+                                            "Email": settings.MAILJET_SENDER_EMAIL,
+                                            "Name": "BookBus"
+                                        },
+                                        "To": [
+                                            {
+                                                "Email": new_booking.passenger_email,
+                                                "Name": new_booking.passenger_name
+                                            }
+                                        ],
+                                        "Subject": subject,
+                                        "TextPart": message.strip(),
+                                        "HTMLPart": f"""
+                                        <h3>Booking Confirmation - {new_booking.bus}</h3>
+                                        <p>Dear {new_booking.passenger_name},</p>
+                                        <p>Your booking has been confirmed. Here are your travel details:</p>
+                                        <ul>
+                                            <li><strong>Bus:</strong> {new_booking.bus}</li>
+                                            <li><strong>Seat:</strong> {new_booking.seat.name} ({new_booking.seat.seat_class})</li>
+                                            <li><strong>Travel Date:</strong> {new_booking.travel_date}</li>
+                                            <li><strong>From:</strong> {new_booking.start_stop}</li>
+                                            <li><strong>To:</strong> {new_booking.end_stop}</li>
+                                            <li><strong>Fare:</strong> ₹{new_booking.seat.fare}</li>
+                                        </ul>
+                                        <p>Thank you for choosing our service!</p>
+                                        """
+                                    }
+                                ]
+                            }
+                        )
+
+                        
+                        if response.status_code != 200:
+                            raise Exception(f"Failed to send booking confirmation: {response.text}")
                         
                     except Exception as e:
-                        messages.error(request, f"Error booking seat {seat_id}: {str(e)}")
+                        # Log error but continue with other bookings
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Error processing booking: {str(e)}")
                         continue
+                    
                 
                 if successful_bookings > 0:
-                     # Deduct coins only for successful bookings
-                    actual_cost = sum(seat.fare for seat in seats.filter(id__in=[s for s in selected_seats if s not in unavailable_seats]))
-                    profile.coins -= actual_cost
-                    profile.save()
+                    # Deduct coins
 
+                    try:
+                        create_transaction(
+                            user=request.user,
+                            travels=new_booking.bus.travels,
+                            amount=actual_cost,
+                            transaction_type='BOOKING',
+                            description=f"Bus booked through {new_booking.bus.travels}"
+                        )
+                    except ValueError as e:
+                        # Handle errors (like insufficient coins)
+                        print(f"Transaction failed: {str(e)}")
+
+                    # Clear session data
                     del request.session['booking_data']
-                    messages.success(request, f"Successfully booked {successful_bookings} seat(s)! {actual_cost} coins deducted.")
+                    messages.success(request, f"Booked {successful_bookings} seat(s)! {actual_cost} coins deducted.")
                     return redirect('booked-buses', username=request.user.username)
                 else:
-                    messages.error(request, "No seats were booked due to errors")
+                    messages.error(request, "No seats were booked")
                     return redirect('bus-book', pk=bus.pk)
 
-    # Prepare context for GET requests or after POST processing
+    # Prepare context for GET requests
     travel_date = None
     if booking_data.get('travel_date'):
         try:
@@ -558,13 +684,14 @@ def bus_book(request, pk):
         is_booked=Exists(
             Booking.objects.filter(
                 seat=OuterRef('pk'),
-                travel_date=travel_date,
-                status='Confirmed'
+                travel_date=travel_date
+            ).exclude(
+                status__in=['Cancelled', 'Refunded']
             )
         ) if travel_date else Value(False, output_field=BooleanField())
     ).order_by('seat_class', 'name')
 
-    # Natural sorting function
+    # Natural sorting
     def natural_sort_key(seat):
         name = seat.name
         alpha = ''
@@ -578,7 +705,7 @@ def bus_book(request, pk):
 
     seats = sorted(seats, key=natural_sort_key)
 
-    # Get selected seat objects for passenger info
+    # Get selected seat objects
     selected_seat_objects = Seat.objects.filter(
         id__in=booking_data.get('selected_seats', []),
         bus=bus
@@ -596,7 +723,8 @@ def bus_book(request, pk):
         },
         'selected_seats': booking_data.get('selected_seats', []),
         'selected_seat_objects': selected_seat_objects,
-        'bus_stops': bus.bus_stops.select_related('stop').order_by('stop_order')
+        'bus_stops': bus.bus_stops.select_related('stop').order_by('stop_order'),
+        'verified_emails': booking_data.get('verified_emails', {})
     }
     
     return render(request, 'bookbus/bus_book.html', context)
@@ -656,6 +784,26 @@ def passenger_info(request, pk):
         messages.error(request, f'Error creating booking: {str(e)}')
         return redirect('bus-book', pk=bus.pk)
 
+@csrf_exempt
+def send_passenger_otp(request):
+    if request.method == 'POST':
+        try:
+            import json
+            data = json.loads(request.body)
+            email = data.get('email')
+            
+            if not email or '@' not in email:
+                return JsonResponse({'success': False, 'message': 'Invalid email'})
+                
+            send_otp_email(email)
+            return JsonResponse({'success': True})
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'})
+
+
 def cancel_booking(request, pk):
     booking = get_object_or_404(Booking, pk=pk, customer=request.user)
     profile = request.user.profile
@@ -675,8 +823,17 @@ def cancel_booking(request, pk):
             booking.save()
             
             # Refund coins
-            profile.coins += refund_amount
-            profile.save()
+            try:
+                create_transaction(
+                    user=user,
+                    travels=booking.bus.travels,
+                    amount=refund_amount,
+                    transaction_type='CANCELLATION',
+                    description=f"Refund for bus booked through {bus.travels} on {booking.date_booked}"
+                )
+            except ValueError as e:
+                # Handle errors (like insufficient coins)
+                print(f"Transaction failed: {str(e)}")
             
             messages.success(request, f'Booking cancelled successfully! {refund_amount} coins refunded.')
             return redirect('booked-buses', username=request.user.username)
@@ -684,16 +841,55 @@ def cancel_booking(request, pk):
     return render(request, 'bookbus/cancel_booking.html', {'booking': booking})
 
 
-def add_stop(request):
-    if request.method == "POST":
-        form = StopForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('bookbus-home')
-    else:
-        form = StopForm()
+class StopCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Stop
+    form_class = StopForm
+    template_name = 'bookbus/add_stop.html'
+    success_url = reverse_lazy('bookbus-home')
+
+    @staticmethod
+    def haversine_distance(lat1, lon1, lat2, lon2):
+        R = 6371000  # Radius of Earth in meters
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        delta_phi = math.radians(lat2 - lat1)
+        delta_lambda = math.radians(lon2 - lon1)
+
+        a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        return R * c 
+
+    def form_valid(self, form):
+        lat = form.cleaned_data['latitude']
+        lng = form.cleaned_data['longitude']
+
+        # Rough bounding box for ~10 meters (very small range)
+        delta = 0.0001  # ~11 meters latitude-wise, works fine for small proximity
+        nearby_stops = Stop.objects.filter(
+            latitude__range=(lat - delta, lat + delta),
+            longitude__range=(lng - delta, lng + delta)
+        )
+
+        for stop in nearby_stops:
+            distance = self.haversine_distance(lat, lng, stop.latitude, stop.longitude)
+            if distance < 10:
+                messages.error(self.request, "A stop already exists within 10 meters.")
+                return self.form_invalid(form)
+
+        stop = form.save()
+        return super().form_valid(form)
     
-    return render(request, 'bookbus/add_stop.html', {'form': form})
+    def form_invalid(self, form):
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(self.request, f"{field.capitalize()}: {error}")
+        return super().form_invalid(form)
+    
+    def test_func(self):
+        return self.request.user.groups.filter(name='BusAdmin').exists()
+
+    
 
 class ExportBookingsView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'bookbus/export_bookings.html'
